@@ -16,6 +16,11 @@ PKG_LAST_NONEMPTY_LINES=""
 LAST_PKG_LOG_START_OFFSET=0
 PKG_ACTIVE_PID=""
 PKG_CANCEL_REQUESTED=false
+TERMUX_VARIANT_ID=""
+TERMUX_VARIANT_LABEL=""
+TERMUX_VARIANT_SOURCE=""
+TERMUX_REPO_PRIMARY=""
+TERMUX_REPO_SUMMARY=""
 
 first_run_stage_done() {
     local etapa="$1"
@@ -42,6 +47,79 @@ first_run_progress_summary() {
         esac
     done
     printf '%s\n' "${linhas[@]}"
+}
+
+coletar_repositorios_termux() {
+    local -a fontes=()
+    local arquivo prefixo="${PREFIX:-}"
+    [ -n "$prefixo" ] || return 0
+    [ -r "$prefixo/etc/apt/sources.list" ] && fontes+=("$prefixo/etc/apt/sources.list")
+    for arquivo in "$prefixo"/etc/apt/sources.list.d/*.list; do
+        [ -r "$arquivo" ] && fontes+=("$arquivo")
+    done
+    [ ${#fontes[@]} -gt 0 ] || return 0
+    awk '/^[[:space:]]*deb[[:space:]]+https?:\/\// {print $2}' "${fontes[@]}" 2>/dev/null | awk '!seen[$0]++'
+}
+
+detectar_variante_termux() {
+    if [ -n "${TERMUX_VARIANT_ID:-}" ] && [ -n "${TERMUX_VARIANT_LABEL:-}" ]; then
+        return 0
+    fi
+
+    local versao="${TERMUX_VERSION:-}" repos="" repo_primario=""
+    repos="$(coletar_repositorios_termux | paste -sd ', ' - 2>/dev/null || true)"
+    repo_primario="$(printf '%s' "$repos" | awk -F', ' 'NF{print $1; exit}')"
+    [ -n "$repo_primario" ] || repo_primario="indisponível"
+
+    TERMUX_VARIANT_ID="unknown"
+    TERMUX_VARIANT_LABEL="Origem não identificada"
+    TERMUX_VARIANT_SOURCE="Indefinida"
+    TERMUX_REPO_PRIMARY="$repo_primario"
+    TERMUX_REPO_SUMMARY="${repos:-indisponível}"
+
+    case "$versao" in
+        googleplay.*)
+            TERMUX_VARIANT_ID="google-play"
+            TERMUX_VARIANT_LABEL="Google Play"
+            TERMUX_VARIANT_SOURCE="Google Play"
+            ;;
+        *)
+            case "$repos $versao" in
+                *termux.net*)
+                    TERMUX_VARIANT_ID="google-play"
+                    TERMUX_VARIANT_LABEL="Google Play"
+                    TERMUX_VARIANT_SOURCE="Google Play"
+                    ;;
+                *packages.termux.dev*|*packages-cf.termux.dev*|*grimler.se*|*termux.dev*)
+                    TERMUX_VARIANT_ID="github-fdroid"
+                    TERMUX_VARIANT_LABEL="GitHub/F-Droid"
+                    TERMUX_VARIANT_SOURCE="GitHub/F-Droid"
+                    ;;
+            esac
+            ;;
+    esac
+
+    if [ "$TERMUX_VARIANT_ID" = "unknown" ] && [ -n "$versao" ] && [[ "$versao" =~ ^[0-9] ]]; then
+        TERMUX_VARIANT_ID="github-fdroid"
+        TERMUX_VARIANT_LABEL="GitHub/F-Droid"
+        TERMUX_VARIANT_SOURCE="GitHub/F-Droid"
+    fi
+}
+
+termux_origem_resumida() {
+    detectar_variante_termux
+    printf '%s' "${TERMUX_VARIANT_LABEL:-indisponível}"
+}
+
+termux_repositorio_resumido() {
+    detectar_variante_termux
+    printf '%s' "${TERMUX_REPO_PRIMARY:-indisponível}"
+}
+
+pacote_disponivel_termux() {
+    local pacote="$1"
+    command -v apt-cache >/dev/null 2>&1 || return 0
+    apt-cache show "$pacote" 2>/dev/null | grep -q '^Package:[[:space:]]'
 }
 
 status_pacote() {
@@ -185,13 +263,16 @@ gerar_diagnostico_pkg() {
     local contexto="$1"
     local codigo="${LAST_PKG_EXIT_CODE:-desconhecido}"
     local comando="${LAST_PKG_COMMAND:-pkg (comando não registrado)}"
-    local data sistema arquitetura versao_termux
+    local data sistema arquitetura versao_termux origem_termux repositorio_termux
 
     mkdir -p "$(dirname "$TERMUX_DIAGNOSTIC_LOG")"
     data="$(date '+%Y-%m-%d %H:%M:%S %z' 2>/dev/null || date)"
     sistema="$(uname -a 2>/dev/null || printf 'indisponível')"
     arquitetura="$(dpkg --print-architecture 2>/dev/null || uname -m 2>/dev/null || printf 'indisponível')"
     versao_termux="${TERMUX_VERSION:-indisponível}"
+    detectar_variante_termux
+    origem_termux="${TERMUX_VARIANT_LABEL:-indisponível}"
+    repositorio_termux="${TERMUX_REPO_PRIMARY:-indisponível}"
 
     {
         printf '%s\n' '========== DIAGNÓSTICO DO MANAGER =========='
@@ -770,6 +851,7 @@ configurar_armazenamento() {
 
 verificar_ambiente_termux() {
     resolver_downloads_dir >/dev/null 2>&1 || true
+    detectar_variante_termux
     cabecalho_tela "🔎 Diagnóstico do ambiente" "Ferramentas detectadas no aparelho"
 
     versao_cmd() {
@@ -780,6 +862,8 @@ verificar_ambiente_termux() {
             printf 'não instalado'
         fi
     }
+
+    caixa_simples "📱 Termux"         "Origem: $(termux_origem_resumida)"         "Versão: ${TERMUX_VERSION:-indisponível}"         "Repositório: $(termux_repositorio_resumido)"         "PREFIX: $(caminho_curto "${PREFIX:-indisponível}")"
 
     caixa_simples "📂 Acesso"         "Armazenamento: $([ -d "$HOME/storage" ] && echo OK || echo ausente)"         "Downloads: $([ -d "$DOWNLOADS_DIR" ] && echo acessível || echo indisponível)"         "Espaço livre: $(df -h "$HOME" 2>/dev/null | awk 'NR==2{print $4}')"
 
@@ -794,14 +878,27 @@ verificar_ambiente_termux() {
 }
 instalar_lista_pacotes() {
     local titulo="$1"; shift
-    local pacotes=("$@") faltando=() p
+    local pacotes=("$@") faltando=() indisponiveis=() p
+    detectar_variante_termux
     for p in "${pacotes[@]}"; do
-        dpkg -s "$p" >/dev/null 2>&1 || faltando+=("$p")
+        if dpkg -s "$p" >/dev/null 2>&1; then
+            continue
+        elif pacote_disponivel_termux "$p"; then
+            faltando+=("$p")
+        else
+            indisponiveis+=("$p")
+            log "WARN" "Pacote não disponível nesta variante do Termux: $p (${TERMUX_VARIANT_LABEL:-desconhecida})"
+        fi
     done
 
     if [ ${#faltando[@]} -eq 0 ]; then
         cabecalho_tela "🧰 Instalar ferramentas" "$titulo"
-        caixa_simples "✅ Nada a instalar" "Todos os pacotes já estão disponíveis."
+        if [ ${#indisponiveis[@]} -gt 0 ]; then
+            caixa_simples "ℹ Compatibilidade da edição atual"                 "Origem do Termux: $(termux_origem_resumida)"                 "Pacotes já instalados: $(( ${#pacotes[@]} - ${#indisponiveis[@]} ))"                 "Pacotes indisponíveis nesta edição: ${#indisponiveis[@]}"
+            caixa_simples "Pacotes não disponíveis" "${indisponiveis[*]}"
+        else
+            caixa_simples "✅ Nada a instalar" "Todos os pacotes já estão disponíveis."
+        fi
         [ "${WIZARD_MODE:-false}" = true ] || pause
         return 0
     fi
@@ -817,7 +914,7 @@ instalar_lista_pacotes() {
     fi
 
     mkdir -p "$(dirname "$TERMUX_SETUP_LOG")"
-    local total=${#faltando[@]} indice=0 instalados=0 falhas=0 pulados=0 pct restantes rc escolha tentativas
+    local total=${#faltando[@]} indice=0 instalados=0 falhas=0 pulados=0 indisponiveis_count=${#indisponiveis[@]} pct restantes rc escolha tentativas
     local concluidos=() pendentes=()
     for p in "${faltando[@]}"; do pendentes+=("$p"); done
 
@@ -1174,7 +1271,10 @@ tela_conclusao_primeira_execucao() {
 assistente_primeira_execucao() {
     [ -f "$FIRST_RUN_FILE" ] && return 0
 
+    detectar_variante_termux
     cabecalho_tela "👋 Bem-vindo ao Manager.sh" "Configuração inicial"
+    caixa_simples "Termux detectado"         "Origem: $(termux_origem_resumida)"         "Versão: ${TERMUX_VERSION:-indisponível}"         "Repositório: $(termux_repositorio_resumido)"
+
     caixa_simples "Etapas do assistente" \
         "1. Liberar acesso ao armazenamento" \
         "2. Atualizar os pacotes do Termux" \

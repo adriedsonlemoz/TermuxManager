@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.72  
+**Versão atual:** 1.0.73  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -82,6 +82,8 @@ Página oficial:
 
 A edição do Google Play é mantida separadamente da edição GitHub/F-Droid e atualmente exige **Android 11 ou superior**. Alguns recursos e complementos podem ter diferenças. Informações dessa edição:
 
+O instalador e a configuração inicial do Manager agora **detectam automaticamente** se o Termux em uso é da **Google Play** ou da linha **GitHub/F-Droid**, registram essa origem nos diagnósticos e adaptam a instalação das ferramentas recomendadas quando um pacote não existir naquela variante.
+
 **https://github.com/termux-play-store**
 
 ### 2. Instale o Termux Manager com um comando
@@ -110,6 +112,8 @@ Esse fluxo **não depende de uma GitHub Release publicada**. Enquanto `main` for
 Na primeira abertura, o próprio Manager solicita acesso ao armazenamento, atualiza o ambiente, instala as ferramentas recomendadas e configura o comando global `manager`.
 
 A primeira configuração é retomável: cada etapa concluída é salva. Se uma instalação de pacote ficar sem novas mensagens, o Manager continua mostrando **tempo decorrido** e **tempo desde a última atividade** em vez de parecer congelado. `Ctrl+C` durante uma instalação monitorada não fecha mais o Manager; abre opções para **tentar novamente**, **pular o pacote** ou **retomar depois**. Ao abrir novamente, etapas já concluídas e pacotes já instalados não são repetidos.
+
+Durante a instalação de ferramentas, o Manager também distingue pacotes **já instalados**, **ausentes** e **indisponíveis na variante atual do Termux**. Pacotes que não existirem naquela edição são marcados como indisponíveis e não derrubam o assistente de configuração.
 
 Depois da configuração inicial, basta abrir com:
 
@@ -257,10 +261,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.72
-Tag: v1.0.72
-Release: Manager 1.0.72
-Pacote único: TermuxManager-v1.0.72.zip
+Versão: 1.0.73
+Tag: v1.0.73
+Release: Manager 1.0.73
+Pacote único: TermuxManager-v1.0.73.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

@@ -25,6 +25,48 @@ trap cleanup EXIT INT TERM
 command -v pkg >/dev/null 2>&1 || fail "Este instalador deve ser executado dentro do Termux."
 command -v curl >/dev/null 2>&1 || fail "curl não foi encontrado. Execute 'pkg install curl' e tente novamente."
 
+TERMUX_VARIANT_ID=""
+TERMUX_VARIANT_LABEL=""
+TERMUX_REPO_PRIMARY=""
+
+coletar_repositorios_termux() {
+    local -a fontes=()
+    local arquivo prefixo="${PREFIX:-}"
+    [ -n "$prefixo" ] || return 0
+    [ -r "$prefixo/etc/apt/sources.list" ] && fontes+=("$prefixo/etc/apt/sources.list")
+    for arquivo in "$prefixo"/etc/apt/sources.list.d/*.list; do
+        [ -r "$arquivo" ] && fontes+=("$arquivo")
+    done
+    [ ${#fontes[@]} -gt 0 ] || return 0
+    awk '/^[[:space:]]*deb[[:space:]]+https?:\/\// {print $2}' "${fontes[@]}" 2>/dev/null | awk '!seen[$0]++'
+}
+
+detectar_variante_termux() {
+    [ -n "${TERMUX_VARIANT_LABEL:-}" ] && return 0
+    local versao="${TERMUX_VERSION:-}" repos=""
+    repos="$(coletar_repositorios_termux | paste -sd ', ' - 2>/dev/null || true)"
+    TERMUX_REPO_PRIMARY="$(printf '%s' "$repos" | awk -F', ' 'NF{print $1; exit}')"
+    [ -n "$TERMUX_REPO_PRIMARY" ] || TERMUX_REPO_PRIMARY="indisponível"
+    TERMUX_VARIANT_ID="unknown"
+    TERMUX_VARIANT_LABEL="Origem não identificada"
+    case "$versao $repos" in
+        googleplay.*|*termux.net*)
+            TERMUX_VARIANT_ID="google-play"
+            TERMUX_VARIANT_LABEL="Google Play"
+            ;;
+        *packages.termux.dev*|*packages-cf.termux.dev*|*grimler.se*|*termux.dev*)
+            TERMUX_VARIANT_ID="github-fdroid"
+            TERMUX_VARIANT_LABEL="GitHub/F-Droid"
+            ;;
+        *)
+            if [ -n "$versao" ] && [[ "$versao" =~ ^[0-9] ]]; then
+                TERMUX_VARIANT_ID="github-fdroid"
+                TERMUX_VARIANT_LABEL="GitHub/F-Droid"
+            fi
+            ;;
+    esac
+}
+
 pids_pkg_ativos() {
     local proc pid nome estado
     for proc in /proc/[0-9]*; do
@@ -68,6 +110,14 @@ aguardar_pkg_livre() {
         ok "Gerenciador de pacotes liberado."
     fi
 }
+
+detectar_variante_termux
+info "Termux detectado: ${TERMUX_VARIANT_LABEL:-Origem não identificada}"
+printf 'Versão: %s
+' "${TERMUX_VERSION:-indisponível}"
+printf 'Repositório: %s
+
+' "${TERMUX_REPO_PRIMARY:-indisponível}"
 
 mkdir -p "$TMP_BASE"
 TMP_DIR="$(mktemp -d "$TMP_BASE/termux-manager-install.XXXXXX")" || fail "Não foi possível criar a pasta temporária."

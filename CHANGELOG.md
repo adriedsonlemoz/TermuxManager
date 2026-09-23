@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.73] - 2026-09-23
+
+### Adicionado
+- Detecção automática da origem do Termux no instalador e no Manager, diferenciando **Google Play** e **GitHub/F-Droid** com registro da variante nas telas e diagnósticos.
+- Novo teste `tools/test-termux-variant.sh` para validar a identificação das duas variantes suportadas.
+
+### Melhorado
+- A instalação de ferramentas agora verifica se cada pacote existe na variante atual do Termux antes de tentar instalá-lo. Pacotes ausentes naquela edição passam a ser marcados como **indisponíveis**, sem interromper a configuração inicial.
+- A página **Sobre**, o diagnóstico do ambiente e a ajuda de primeira instalação agora mostram a origem detectada do Termux e o repositório APT principal.
+- O instalador `install.sh` agora informa na tela a variante detectada do Termux antes de baixar e instalar o Manager.
+
+### Corrigido
+- Evitada falha desnecessária da primeira configuração quando um pacote recomendado não existe em determinada variante do Termux.
+
 ## [1.0.72] - 2026-09-23
 
 - Primeira configuração agora salva progresso por etapa e retoma de onde parou; atualização do Termux e pacotes já concluídos não são repetidos após uma interrupção.

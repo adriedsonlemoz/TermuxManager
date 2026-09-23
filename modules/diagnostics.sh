@@ -178,7 +178,10 @@ cabecalho_relatorio_diagnostico() {
     printf 'Categoria: %s\n' "$categoria"
     printf 'Fonte: %s\n' "$fonte"
     printf 'Linha selecionada: %s\n' "$linha"
+    declare -F detectar_variante_termux >/dev/null 2>&1 && detectar_variante_termux
     printf 'Termux: %s\n' "${TERMUX_VERSION:-indisponível}"
+    printf 'Origem do Termux: %s\n' "${TERMUX_VARIANT_LABEL:-indisponível}"
+    printf 'Repositório: %s\n' "${TERMUX_REPO_PRIMARY:-indisponível}"
     printf 'Sistema: %s\n' "$(uname -a 2>/dev/null || printf 'indisponível')"
     printf '%s\n' 'Observação: segredos comuns foram removidos da cópia.'
     printf '%s\n' '--------------------------------------------------'
@@ -470,7 +473,10 @@ gerar_snapshot_termux() {
         printf '%s\n' '========== DIAGNÓSTICO ATUAL DO TERMUX =========='
         printf 'Data: %s\n' "$(date '+%Y-%m-%d %H:%M:%S %z' 2>/dev/null || date)"
         printf 'Manager: %s\n' "${MANAGER_VERSION:-desconhecida}"
+        declare -F detectar_variante_termux >/dev/null 2>&1 && detectar_variante_termux
         printf 'Termux: %s\n' "${TERMUX_VERSION:-indisponível}"
+        printf 'Origem do Termux: %s\n' "${TERMUX_VARIANT_LABEL:-indisponível}"
+        printf 'Repositório: %s\n' "${TERMUX_REPO_PRIMARY:-indisponível}"
         printf 'PREFIX: %s\n' "${PREFIX:-indisponível}"
         printf 'Shell: %s\n' "${SHELL:-indisponível}"
         printf 'Arquitetura: %s\n' "$(dpkg --print-architecture 2>/dev/null || uname -m 2>/dev/null)"

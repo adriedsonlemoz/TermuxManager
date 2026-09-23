@@ -83,6 +83,7 @@ menu_sobre_manager() {
             status_atalho="Não instalado"
         fi
 
+        detectar_variante_termux
         repo_curto="adriedsonlemoz/TermuxManager"
         base_curta="$(caminho_curto "$BASE_DIR")"
         config_curta="$(caminho_curto "${CONFIG_FILE:-não definida}")"
@@ -108,6 +109,8 @@ menu_sobre_manager() {
         caixa_linha_texto "Diretório: $base_curta"
         caixa_linha_texto "Shell: $shell_atual"
         caixa_linha_texto "Comando manager: $status_atalho"
+        caixa_linha_texto "Origem do Termux: $(termux_origem_resumida)"
+        caixa_linha_texto "Repositório APT: $(termux_repositorio_resumido)"
         caixa_linha_texto "Configuração: $config_curta"
         caixa_linha_sep
         caixa_linha_texto "${C_BOLD}AÇÕES${C_RESET}" true
