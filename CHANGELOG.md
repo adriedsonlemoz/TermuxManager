@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.69] - 2026-09-23
+
+### Instalação simplificada
+- Adicionado `install.sh` oficial para transformar a primeira instalação em um único comando.
+- O instalador consulta automaticamente a release estável mais recente, baixa o pacote e seu SHA-256 e verifica a integridade antes de instalar.
+- O instalador prepara dependências mínimas, valida `manager.sh` e os módulos com `bash -n`, confere a versão interna e preserva backup de uma instalação existente.
+- README passou a recomendar `pkg install -y curl && curl -fsSL .../install.sh | bash`, eliminando a necessidade de localizar manualmente o ZIP em Downloads.
+- Fluxo manual foi mantido apenas como alternativa.
+- Ajuda interna de primeira instalação atualizada para o novo fluxo automático.
+
 ## [1.0.68] - 2026-09-23
 
 ### Primeira instalação

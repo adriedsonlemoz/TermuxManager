@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 ###############################################################################
-# manager.sh — Gerenciador de Projetos para Termux — Versão 1.0.68
+# manager.sh — Gerenciador de Projetos para Termux — Versão 1.0.69
 #
 # Gerencia importação, listagem, teste (detecção de stack + instalação
 # automática de dependências) e execução de projetos frontend/backend
@@ -19,7 +19,7 @@ if ! pwd -P >/dev/null 2>&1; then
     cd "${HOME:-/}" 2>/dev/null || cd /
 fi
 
-MANAGER_VERSION="1.0.68"
+MANAGER_VERSION="1.0.69"
 MANAGER_DEVELOPER="Adriedson Aparecido Lemos"
 MANAGER_REPOSITORY="https://github.com/adriedsonlemoz/TermuxManager"
 MANAGER_LICENSE="Uso livre conforme o repositório"

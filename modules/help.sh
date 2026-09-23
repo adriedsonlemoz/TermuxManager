@@ -2,36 +2,30 @@
 # Ajuda integrada do Termux Manager.
 
 ajuda_primeira_instalacao() {
-    cabecalho_tela "🚀 Primeira instalação" "Termux, download, armazenamento e primeira abertura"
+    cabecalho_tela "🚀 Primeira instalação" "Instalação automática recomendada"
     caixa_simples "1. Instalar o Termux" \
         "GitHub: https://github.com/termux/termux-app/releases" \
         "Google Play: https://play.google.com/store/apps/details?id=com.termux" \
         "A edição Google Play exige Android 11+ e pode ter diferenças da edição GitHub/F-Droid."
     echo
-    caixa_simples "2. Baixar o Manager" \
+    caixa_simples "2. Instalar o Manager" \
+        "Copie esta linha inteira no Termux:" \
+        "pkg install -y curl && curl -fsSL https://raw.githubusercontent.com/adriedsonlemoz/TermuxManager/main/install.sh | bash"
+    echo
+    caixa_simples "O instalador faz sozinho" \
+        "Detecta a release estável mais recente." \
+        "Baixa o ZIP e o SHA-256 diretamente do GitHub." \
+        "Confere a integridade, valida os scripts, instala e abre o Manager." \
+        "Não é necessário baixar o ZIP manualmente nem liberar Downloads antes da instalação."
+    echo
+    caixa_simples "Primeira abertura" \
+        "O próprio assistente libera o armazenamento e prepara as ferramentas." \
+        "Depois da configuração, abra normalmente com: manager"
+    echo
+    caixa_simples "Alternativa manual" \
         "Releases: https://github.com/adriedsonlemoz/TermuxManager/releases" \
-        "Baixe manager-vX.Y.Z.zip e deixe em Downloads." \
+        "Baixe manager-vX.Y.Z.zip somente se não quiser usar o instalador automático." \
         "Não use Source code (zip) nem Code > Download ZIP."
-    echo
-    caixa_simples "3. Preparar o Termux" \
-        "pkg update -y" \
-        "termux-setup-storage" \
-        "pkg install unzip -y" \
-        "Aceite a permissão de armazenamento quando o Android solicitar."
-    echo
-    caixa_simples "4. Extrair o pacote" \
-        'PACOTE="$(ls -t ~/storage/downloads/manager-v*.zip 2>/dev/null | head -n 1)"' \
-        '[ -n "$PACOTE" ] || { echo "Pacote não encontrado em Downloads."; return; }' \
-        'mkdir -p ~/scripts/manager' \
-        'unzip -o "$PACOTE" -d ~/scripts/manager'
-    echo
-    caixa_simples "5. Primeira abertura" \
-        "bash ~/scripts/manager/manager.sh" \
-        "O assistente prepara o ambiente e instala/configura o atalho manager."
-    echo
-    caixa_simples "Após configurar" \
-        "Abra normalmente com: manager" \
-        "O atalho opcional mm pode ser ativado nas configurações."
     pause
 }
 
