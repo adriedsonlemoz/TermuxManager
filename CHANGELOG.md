@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.70] - 2026-09-23
+
+### Correção do instalador automático
+- Corrigido o erro `404` na primeira instalação quando o repositório ainda não possui GitHub Releases publicadas.
+- `install.sh` deixou de depender de `/releases/latest` e agora baixa diretamente a versão estável da branch `main`.
+- O instalador valida `MANIFEST.json`, confere os hashes dos arquivos, verifica a versão interna e executa `bash -n` antes de substituir a instalação atual.
+- Mantidos backup automático e abertura do Manager ao final da instalação.
+- README e ajuda interna foram ajustados para explicar que a instalação automática não depende da página de Releases.
+- Adicionado teste de integração local do instalador para reproduzir a extração e instalação sem acesso à rede.
+
 ## [1.0.69] - 2026-09-23
 
 ### Instalação simplificada

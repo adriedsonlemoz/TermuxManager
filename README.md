@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.69  
+**Versão atual:** 1.0.70  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -94,14 +94,16 @@ pkg install -y curl && curl -fsSL https://raw.githubusercontent.com/adriedsonlem
 
 Pronto. O instalador oficial faz automaticamente o restante:
 
-1. consulta a release estável mais recente no GitHub;
-2. baixa `manager-vX.Y.Z.zip`;
-3. baixa e verifica o SHA-256 publicado da mesma release;
-4. instala `unzip`/ferramentas básicas se estiverem faltando;
-5. valida o pacote e a sintaxe dos scripts;
+1. baixa a versão estável diretamente da branch `main` do repositório;
+2. instala `unzip`/ferramentas básicas se estiverem faltando;
+3. extrai o projeto e confere a versão declarada;
+4. valida os hashes de todos os arquivos listados em `MANIFEST.json`;
+5. valida `manager.sh` e os módulos com `bash -n`;
 6. instala em `~/scripts/manager`;
 7. preserva um backup se já existir uma instalação;
 8. abre o Termux Manager.
+
+Esse fluxo **não depende de uma GitHub Release publicada**. Enquanto `main` for o canal estável do projeto, o comando acima continua funcionando mesmo que a página de Releases esteja vazia.
 
 Na primeira abertura, o próprio Manager solicita acesso ao armazenamento, atualiza o ambiente, instala as ferramentas recomendadas e configura o comando global `manager`.
 
@@ -113,33 +115,13 @@ manager
 
 ### Instalação manual (alternativa)
 
-Use esta opção apenas se não quiser usar o instalador automático ou se estiver sem acesso direto ao GitHub pelo Termux.
+Use esta opção apenas se não quiser executar o instalador automático.
 
-Abra:
+Abra o repositório:
 
-**https://github.com/adriedsonlemoz/TermuxManager/releases**
+**https://github.com/adriedsonlemoz/TermuxManager**
 
-Baixe `manager-vX.Y.Z.zip` da release mais recente e deixe o arquivo em **Downloads**.
-
-> Não use `Source code (zip)`, `Source code (tar.gz)` nem **Code → Download ZIP**. Eles não são o pacote de instalação da release.
-
-Depois execute:
-
-```bash
-pkg install -y unzip
-termux-setup-storage
-```
-
-Aceite a permissão de arquivos quando o Android solicitar. Em seguida, execute:
-
-```bash
-PACOTE="$(ls -t ~/storage/downloads/manager-v*.zip 2>/dev/null | head -n 1)" && \
-[ -n "$PACOTE" ] && mkdir -p ~/scripts/manager && \
-unzip -o "$PACOTE" -d ~/scripts/manager && \
-bash ~/scripts/manager/manager.sh
-```
-
-O método automático acima é o recomendado porque também verifica a integridade do pacote antes de instalar.
+Use **Code → Download ZIP** para baixar a cópia atual da branch `main`. Depois extraia o conteúdo e execute `manager.sh`. Esse método é destinado a instalação manual; o comando automático acima continua sendo o método recomendado porque também valida o `MANIFEST.json` e cria backup de uma instalação anterior.
 
 ## Menu principal
 
@@ -271,11 +253,11 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.69
-Tag: v1.0.69
-Release: Manager 1.0.69
-Pacote: manager-v1.0.69.zip
-Checksum: manager-v1.0.69.sha256
+Versão: 1.0.70
+Tag: v1.0.70
+Release: Manager 1.0.70
+Pacote: manager-v1.0.70.zip
+Checksum: manager-v1.0.70.sha256
 ```
 
 ### Transição da versão 1.0.44

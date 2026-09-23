@@ -13,19 +13,19 @@ ajuda_primeira_instalacao() {
         "pkg install -y curl && curl -fsSL https://raw.githubusercontent.com/adriedsonlemoz/TermuxManager/main/install.sh | bash"
     echo
     caixa_simples "O instalador faz sozinho" \
-        "Detecta a release estável mais recente." \
-        "Baixa o ZIP e o SHA-256 diretamente do GitHub." \
-        "Confere a integridade, valida os scripts, instala e abre o Manager." \
-        "Não é necessário baixar o ZIP manualmente nem liberar Downloads antes da instalação."
+        "Baixa a versão estável diretamente da branch main." \
+        "Valida os hashes declarados em MANIFEST.json e a sintaxe dos scripts." \
+        "Instala, preserva backup da versão anterior e abre o Manager." \
+        "Não depende de GitHub Releases nem de um ZIP em Downloads."
     echo
     caixa_simples "Primeira abertura" \
         "O próprio assistente libera o armazenamento e prepara as ferramentas." \
         "Depois da configuração, abra normalmente com: manager"
     echo
     caixa_simples "Alternativa manual" \
-        "Releases: https://github.com/adriedsonlemoz/TermuxManager/releases" \
-        "Baixe manager-vX.Y.Z.zip somente se não quiser usar o instalador automático." \
-        "Não use Source code (zip) nem Code > Download ZIP."
+        "Repositório: https://github.com/adriedsonlemoz/TermuxManager" \
+        "Use Code > Download ZIP somente se quiser fazer a instalação manual." \
+        "O instalador automático continua sendo o método recomendado."
     pause
 }
 

@@ -6,9 +6,10 @@
 set -Euo pipefail
 
 REPOSITORY="adriedsonlemoz/TermuxManager"
-API_URL="https://api.github.com/repos/${REPOSITORY}/releases/latest"
-INSTALL_DIR="${HOME}/scripts/manager"
-BACKUP_ROOT="${HOME}/.termux-manager/backups"
+BRANCH="${TERMUX_MANAGER_BRANCH:-main}"
+SOURCE_URL="${TERMUX_MANAGER_SOURCE_URL:-https://github.com/${REPOSITORY}/archive/refs/heads/${BRANCH}.zip}"
+INSTALL_DIR="${TERMUX_MANAGER_INSTALL_DIR:-${HOME}/scripts/manager}"
+BACKUP_ROOT="${TERMUX_MANAGER_BACKUP_ROOT:-${HOME}/.termux-manager/backups}"
 TMP_BASE="${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}"
 TMP_DIR=""
 
@@ -34,34 +35,32 @@ fi
 
 mkdir -p "$TMP_BASE"
 TMP_DIR="$(mktemp -d "$TMP_BASE/termux-manager-install.XXXXXX")" || fail "Não foi possível criar a pasta temporária."
+archive_path="$TMP_DIR/TermuxManager.zip"
+source_dir="$TMP_DIR/source"
+mkdir -p "$source_dir"
 
-info "Consultando a versão mais recente"
-release_json="$(curl -fsSL --retry 3 --connect-timeout 20 "$API_URL")" || fail "Não foi possível consultar as releases no GitHub."
-zip_url="$(printf '%s\n' "$release_json" | grep -oE 'https://[^" ]+/manager-v[0-9]+\.[0-9]+\.[0-9]+\.zip' | head -n 1 || true)"
-[ -n "$zip_url" ] || fail "A release mais recente não contém manager-vX.Y.Z.zip."
+info "Baixando a versão estável da branch $BRANCH"
+curl -fL --retry 3 --connect-timeout 20 -o "$archive_path" "$SOURCE_URL" \
+    || fail "Não foi possível baixar o Termux Manager do GitHub."
 
-zip_name="${zip_url##*/}"
-sha_name="${zip_name%.zip}.sha256"
-sha_url="${zip_url%.zip}.sha256"
-zip_path="$TMP_DIR/$zip_name"
-sha_path="$TMP_DIR/$sha_name"
-stage_dir="$TMP_DIR/stage"
+info "Extraindo e validando o projeto"
+unzip -q "$archive_path" -d "$source_dir" || fail "Não foi possível extrair o pacote baixado."
 
-info "Baixando $zip_name"
-curl -fL --retry 3 --connect-timeout 20 -o "$zip_path" "$zip_url" || fail "Falha ao baixar o pacote da release."
-curl -fL --retry 3 --connect-timeout 20 -o "$sha_path" "$sha_url" || fail "Falha ao baixar o checksum da release."
+stage_dir="$source_dir"
+if [ ! -f "$stage_dir/manager.sh" ] || [ ! -d "$stage_dir/modules" ]; then
+    stage_dir=""
+    candidatos=0
+    for candidato in "$source_dir"/*; do
+        [ -d "$candidato" ] || continue
+        if [ -f "$candidato/manager.sh" ] && [ -d "$candidato/modules" ]; then
+            stage_dir="$candidato"
+            candidatos=$((candidatos + 1))
+        fi
+    done
+    [ "$candidatos" -eq 1 ] || fail "Pacote inválido: não foi possível identificar uma única raiz do Termux Manager."
+fi
 
-info "Verificando integridade"
-expected="$(awk 'NR==1 {print $1}' "$sha_path")"
-actual="$(sha256sum "$zip_path" | awk '{print $1}')"
-[[ "$expected" =~ ^[0-9A-Fa-f]{64}$ ]] || fail "Checksum publicado em formato inválido."
-[ "${expected,,}" = "${actual,,}" ] || fail "O SHA-256 do pacote não confere. Instalação cancelada."
-ok "SHA-256 confirmado"
-
-mkdir -p "$stage_dir"
-unzip -q "$zip_path" -d "$stage_dir" || fail "Não foi possível extrair o pacote."
-[ -f "$stage_dir/manager.sh" ] || fail "Pacote inválido: manager.sh não encontrado."
-[ -d "$stage_dir/modules" ] || fail "Pacote inválido: pasta modules não encontrada."
+[ -f "$stage_dir/MANIFEST.json" ] || fail "Pacote inválido: MANIFEST.json não encontrado."
 
 bash -n "$stage_dir/manager.sh" || fail "manager.sh contém erro de sintaxe."
 for module in "$stage_dir"/modules/*.sh; do
@@ -69,11 +68,26 @@ for module in "$stage_dir"/modules/*.sh; do
     bash -n "$module" || fail "Erro de sintaxe em ${module##*/}."
 done
 
-package_version="${zip_name#manager-v}"
-package_version="${package_version%.zip}"
 internal_version="$(sed -nE 's/^MANAGER_VERSION="([^"]+)".*/\1/p' "$stage_dir/manager.sh" | head -n 1)"
+manifest_version="$(sed -nE 's/^[[:space:]]*"version":[[:space:]]*"([^"]+)".*/\1/p' "$stage_dir/MANIFEST.json" | head -n 1)"
 [ -n "$internal_version" ] || fail "Não foi possível identificar a versão interna."
-[ "$package_version" = "$internal_version" ] || fail "Versão do pacote ($package_version) difere da versão interna ($internal_version)."
+[ -n "$manifest_version" ] || fail "Não foi possível identificar a versão do manifesto."
+[ "$internal_version" = "$manifest_version" ] || fail "Versão interna ($internal_version) difere do manifesto ($manifest_version)."
+
+manifest_entries=0
+while IFS=$'\t' read -r relative expected; do
+    [ -n "$relative" ] || continue
+    target="$stage_dir/$relative"
+    [ -f "$target" ] || fail "Manifesto inválido: arquivo ausente: $relative"
+    actual="$(sha256sum "$target" | awk '{print $1}')"
+    [ "${actual,,}" = "${expected,,}" ] || fail "Integridade inválida em: $relative"
+    manifest_entries=$((manifest_entries + 1))
+done < <(
+    sed -n '/"files"[[:space:]]*:[[:space:]]*{/,/^[[:space:]]*}[[:space:]]*$/p' "$stage_dir/MANIFEST.json" \
+        | sed -nE 's/^[[:space:]]*"([^"]+)":[[:space:]]*"([0-9A-Fa-f]{64})",?[[:space:]]*$/\1\t\2/p'
+)
+[ "$manifest_entries" -gt 0 ] || fail "Manifesto inválido: nenhum hash de arquivo foi encontrado."
+ok "Manifesto validado: $manifest_entries arquivos conferidos"
 
 info "Instalando Termux Manager $internal_version"
 mkdir -p "$(dirname "$INSTALL_DIR")"
@@ -96,8 +110,13 @@ if ! mv "$new_dir" "$INSTALL_DIR"; then
 fi
 rm -rf -- "$old_dir"
 
-ok "Termux Manager $internal_version instalado em ~/scripts/manager"
+ok "Termux Manager $internal_version instalado em $INSTALL_DIR"
 [ -n "$backup_dir" ] && printf 'Backup anterior: %s\n' "$backup_dir"
+
+if [ "${TERMUX_MANAGER_SKIP_LAUNCH:-0}" = "1" ]; then
+    ok "Instalação concluída sem abrir o Manager (modo de teste)."
+    exit 0
+fi
 
 info "Abrindo o Termux Manager"
 if [ -r /dev/tty ]; then
