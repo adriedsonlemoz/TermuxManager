@@ -8,7 +8,7 @@ O projeto usa Versionamento Semântico: `MAJOR.MINOR.PATCH`.
 - **MINOR:** nova funcionalidade compatível;
 - **PATCH:** correção, documentação ou melhoria visual sem quebra de compatibilidade.
 
-Versão atual de referência: `1.0.71`.
+Versão atual de referência: `1.0.72`.
 
 ## Padrão da release
 
@@ -25,10 +25,10 @@ Integridade: MANIFEST.json dentro do pacote
 Para a versão atual:
 
 ```text
-Versão interna: 1.0.71
-Tag: v1.0.71
-Título: Manager 1.0.71
-Pacote único: TermuxManager-v1.0.71.zip
+Versão interna: 1.0.72
+Tag: v1.0.72
+Título: Manager 1.0.72
+Pacote único: TermuxManager-v1.0.72.zip
 Integridade: MANIFEST.json dentro do pacote
 ```
 

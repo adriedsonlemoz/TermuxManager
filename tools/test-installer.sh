@@ -40,6 +40,6 @@ bash "$INSTALLER" >/dev/null
 
 [ -f "$TMP/home/scripts/manager/manager.sh" ]
 [ -f "$TMP/home/scripts/manager/MANIFEST.json" ]
-grep -Fq 'MANAGER_VERSION="1.0.71"' "$TMP/home/scripts/manager/manager.sh"
+grep -Fq 'MANAGER_VERSION="1.0.72"' "$TMP/home/scripts/manager/manager.sh"
 
 echo "OK: instalador baixa a branch main, valida o manifesto e instala sem depender de GitHub Releases."

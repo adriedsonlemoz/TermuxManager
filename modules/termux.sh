@@ -14,6 +14,35 @@ TERMUX_UI_LAST_SIGNATURE=""
 WIZARD_MODE=false
 PKG_LAST_NONEMPTY_LINES=""
 LAST_PKG_LOG_START_OFFSET=0
+PKG_ACTIVE_PID=""
+PKG_CANCEL_REQUESTED=false
+
+first_run_stage_done() {
+    local etapa="$1"
+    [ -f "${FIRST_RUN_STATE_FILE:-}" ] || return 1
+    grep -Fxq "${etapa}=done" "$FIRST_RUN_STATE_FILE" 2>/dev/null
+}
+
+first_run_mark_stage() {
+    local etapa="$1"
+    [ -n "${FIRST_RUN_STATE_FILE:-}" ] || return 0
+    mkdir -p "$(dirname "$FIRST_RUN_STATE_FILE")" 2>/dev/null || true
+    first_run_stage_done "$etapa" || printf '%s=done\n' "$etapa" >> "$FIRST_RUN_STATE_FILE"
+}
+
+first_run_progress_summary() {
+    local etapa status linhas=()
+    for etapa in storage update tools shortcut; do
+        if first_run_stage_done "$etapa"; then status="✔"; else status="○"; fi
+        case "$etapa" in
+            storage) linhas+=("$status Armazenamento") ;;
+            update) linhas+=("$status Atualização do Termux") ;;
+            tools) linhas+=("$status Ferramentas recomendadas") ;;
+            shortcut) linhas+=("$status Atalho global") ;;
+        esac
+    done
+    printf '%s\n' "${linhas[@]}"
+}
 
 status_pacote() {
     local pacote="$1"
@@ -468,9 +497,30 @@ executar_pkg_monitorado() {
     local titulo="$1" pct="$2" limite="$3" atividade="$4" detalhe="$5"
     shift 5
     [ "${1:-}" = "--" ] && shift
-    local args=("$@") pid rc estado linhas assinatura iter=0
+    local args=("$@") pid rc linhas assinatura iter=0
     local lock_pids lock_inicio=$SECONDS lock_decorrido lock_timeout="${TERMUX_MANAGER_PKG_LOCK_TIMEOUT:-180}"
+    local old_int inicio_exec=$SECONDS ultimo_tamanho=0 atividade_em=$SECONDS tamanho_atual ocioso decorrido aviso_atividade
+    old_int="$(trap -p INT || true)"
+    PKG_CANCEL_REQUESTED=false
+    PKG_ACTIVE_PID=""
+    trap 'PKG_CANCEL_REQUESTED=true' INT
+
+    restaurar_trap_pkg() {
+        PKG_ACTIVE_PID=""
+        PKG_CANCEL_REQUESTED=false
+        if [ -n "$old_int" ]; then eval "$old_int"; else trap - INT; fi
+        unset -f restaurar_trap_pkg
+    }
+
     while :; do
+        if [ "$PKG_CANCEL_REQUESTED" = true ]; then
+            LAST_PKG_COMMAND="aguardar liberação do apt/dpkg"
+            LAST_PKG_EXIT_CODE=130
+            log "WARN" "Usuário interrompeu a espera pelo gerenciador de pacotes."
+            encerrar_ui_termux
+            restaurar_trap_pkg
+            return 130
+        fi
         lock_pids="$(pids_gerenciador_pacotes_ativos)"
         lock_pids="${lock_pids% }"
         [ -z "$lock_pids" ] && break
@@ -479,6 +529,8 @@ executar_pkg_monitorado() {
             LAST_PKG_COMMAND="aguardar liberação do apt/dpkg"
             LAST_PKG_EXIT_CODE=75
             log "ERROR" "Gerenciador de pacotes ocupado por PID(s): $lock_pids após ${lock_decorrido}s"
+            encerrar_ui_termux
+            restaurar_trap_pkg
             return 75
         fi
         tela_operacao_termux "$titulo" "$pct" \
@@ -487,22 +539,23 @@ executar_pkg_monitorado() {
             "⏳ apt/dpkg ocupado" "PID(s): $lock_pids" \
             "O Manager continuará automaticamente quando for liberado." \
             "Tempo de espera: ${lock_decorrido}s de ${lock_timeout}s" \
-            "Nenhum comando concorrente será iniciado."
+            "Ctrl+C abre opções sem encerrar o Manager."
         sleep 2
     done
 
+    local -a apt_opcoes=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 -o DPkg::Lock::Timeout=30)
     local -a comando_exec=()
     case "${args[0]:-}" in
         update)
-            comando_exec=(apt-get update)
+            comando_exec=(apt-get "${apt_opcoes[@]}" update)
             ;;
         upgrade)
-            comando_exec=(env DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
+            comando_exec=(env DEBIAN_FRONTEND=noninteractive apt-get "${apt_opcoes[@]}" upgrade -y
                 -o Dpkg::Options::=--force-confdef
                 -o Dpkg::Options::=--force-confold)
             ;;
         install)
-            comando_exec=(env DEBIAN_FRONTEND=noninteractive apt-get install -y
+            comando_exec=(env DEBIAN_FRONTEND=noninteractive apt-get "${apt_opcoes[@]}" install -y
                 -o Dpkg::Options::=--force-confdef
                 -o Dpkg::Options::=--force-confold)
             comando_exec+=("${args[@]:2}")
@@ -521,32 +574,59 @@ executar_pkg_monitorado() {
     mkdir -p "$(dirname "$TERMUX_SETUP_LOG")"
     : >> "$TERMUX_SETUP_LOG"
     LAST_PKG_LOG_START_OFFSET="$(wc -c < "$TERMUX_SETUP_LOG" 2>/dev/null || printf '0')"
+    ultimo_tamanho="$LAST_PKG_LOG_START_OFFSET"
+    atividade_em=$SECONDS
+    inicio_exec=$SECONDS
 
     "${comando_exec[@]}" >>"$TERMUX_SETUP_LOG" 2>&1 &
     pid=$!
+    PKG_ACTIVE_PID="$pid"
     while kill -0 "$pid" 2>/dev/null; do
+        if [ "$PKG_CANCEL_REQUESTED" = true ]; then
+            encerrar_arvore_pid "$pid"
+            wait "$pid" 2>/dev/null || true
+            LAST_PKG_EXIT_CODE=130
+            log "WARN" "Operação de pacote interrompida pelo usuário: $LAST_PKG_COMMAND"
+            encerrar_ui_termux
+            restaurar_trap_pkg
+            return 130
+        fi
+
         if log_pkg_exige_interacao "$TERMUX_SETUP_LOG" "$LAST_PKG_LOG_START_OFFSET" || pid_ou_filho_parado "$pid"; then
-            # Algum processo da árvore tentou ler o terminal em segundo plano.
-            # Encerra a execução oculta e repete o mesmo comando em primeiro
-            # plano, sem exigir confirmação extra do usuário.
             encerrar_arvore_pid "$pid"
             wait "$pid" 2>/dev/null || true
             encerrar_ui_termux
             printf '\033[2J\033[H\033[?25h'
             detectar_terminal
             caixa_simples "⚠ Ação necessária" "$titulo requer interação." "Responda diretamente abaixo."
+            trap - INT
             "${comando_exec[@]}" 2>&1 | tee -a "$TERMUX_SETUP_LOG"
-            rc=$?
+            rc=${PIPESTATUS[0]}
             LAST_PKG_EXIT_CODE="$rc"
+            restaurar_trap_pkg
             return "$rc"
         fi
+
+        tamanho_atual="$(wc -c < "$TERMUX_SETUP_LOG" 2>/dev/null || printf '%s' "$ultimo_tamanho")"
+        if [ "$tamanho_atual" != "$ultimo_tamanho" ]; then
+            ultimo_tamanho="$tamanho_atual"
+            atividade_em=$SECONDS
+        fi
+        decorrido=$((SECONDS - inicio_exec))
+        ocioso=$((SECONDS - atividade_em))
+        if [ "$ocioso" -ge 30 ]; then
+            aviso_atividade="⚠ Sem nova saída há ${ocioso}s • rede/repositório pode estar lento"
+        else
+            aviso_atividade="✔ Processo ativo • última saída há ${ocioso}s"
+        fi
+
         linhas="$(ultimas_linhas_pkg "$TERMUX_SETUP_LOG" 5)"
-        assinatura="$pct|$linhas"
+        assinatura="$pct|$linhas|$decorrido|$ocioso"
         if [ "$assinatura" != "${TERMUX_UI_LAST_SIGNATURE:-}" ]; then
             TERMUX_UI_LAST_SIGNATURE="$assinatura"
             PKG_PREVIEW_LINES="$linhas" tela_operacao_termux "$titulo" "$pct" "$atividade" "$detalhe" \
-                "⏳ pkg em execução" "PID: $pid" "Saída atualizada em tempo real" \
-                "A porcentagem desta etapa é estimada." "$linhas"
+                "⏳ pkg em execução" "PID: $pid • ${decorrido}s" "$aviso_atividade" \
+                "Ctrl+C abre opções seguras; não encerra o Manager." "$linhas"
         fi
         iter=$((iter + 1))
         if [ "$pct" -lt "$limite" ] && [ $((iter % 2)) -eq 0 ]; then pct=$((pct + 1)); fi
@@ -555,6 +635,7 @@ executar_pkg_monitorado() {
     wait "$pid"; rc=$?
     LAST_PKG_EXIT_CODE="$rc"
     encerrar_ui_termux
+    restaurar_trap_pkg
     return "$rc"
 }
 
@@ -591,6 +672,10 @@ atualizar_pacotes_termux() {
     fi
 
     if ! executar_pkg_monitorado "Preparando Ambiente Termux" 10 44         "Sincronizando repositórios..." "Usando mirrors oficiais do Termux." -- update -y; then
+        if [ "${WIZARD_MODE:-false}" = true ] && [ "${LAST_PKG_EXIT_CODE:-}" = 130 ]; then
+            log "INFO" "Atualização do wizard pausada pelo usuário durante apt-get update."
+            return 130
+        fi
         mostrar_erro_pkg "Falha ao consultar os repositórios do Termux."
         [ "${WIZARD_MODE:-false}" = true ] || pause
         return 1
@@ -598,6 +683,10 @@ atualizar_pacotes_termux() {
 
     if ! executar_pkg_monitorado "Preparando Ambiente Termux" 45 89 \
         "Atualizando o sistema do Termux..." "Verificando pacotes instalados." -- upgrade -y; then
+        if [ "${WIZARD_MODE:-false}" = true ] && [ "${LAST_PKG_EXIT_CODE:-}" = 130 ]; then
+            log "INFO" "Atualização do wizard pausada pelo usuário durante apt-get upgrade."
+            return 130
+        fi
         # Se o dpkg ficou interrompido, tenta reparar e repete o upgrade uma
         # única vez. Isso cobre interrupções reais sem criar loop infinito.
         if log_pkg_tem_dpkg_interrompido "$TERMUX_SETUP_LOG" "${LAST_PKG_LOG_START_OFFSET:-0}"; then
@@ -728,7 +817,7 @@ instalar_lista_pacotes() {
     fi
 
     mkdir -p "$(dirname "$TERMUX_SETUP_LOG")"
-    local total=${#faltando[@]} indice=0 instalados=0 falhas=0 pct restantes
+    local total=${#faltando[@]} indice=0 instalados=0 falhas=0 pulados=0 pct restantes rc escolha tentativas
     local concluidos=() pendentes=()
     for p in "${faltando[@]}"; do pendentes+=("$p"); done
 
@@ -751,27 +840,76 @@ instalar_lista_pacotes() {
             [ "$vistos" -ge 3 ] && break
         done
 
-        tela_operacao_termux "Instalando Ferramentas" "$pct" \
-            "Pacote atual: $p" \
-            "$indice de $total • $restantes restante(s)" \
-            "${ultimos:+✔ Concluídos: $ultimos}" \
-            "⏳ Instalando: $p" \
-            "${proximos:+○ Próximos: $proximos}" \
-            "Cada pacote é verificado antes do download."
+        tentativas=0
+        while true; do
+            tela_operacao_termux "Instalando Ferramentas" "$pct" \
+                "Pacote atual: $p" \
+                "$indice de $total • $restantes restante(s)" \
+                "${ultimos:+✔ Concluídos: $ultimos}" \
+                "⏳ Instalando: $p" \
+                "${proximos:+○ Próximos: $proximos}" \
+                "A atividade e o tempo são monitorados em tempo real."
 
-        if executar_pkg_monitorado "Instalando Ferramentas" "$pct" "$(( indice * 100 / total ))"             "Pacote atual: $p" "$indice de $total • $restantes restante(s)" -- install -y "$p"; then
-            instalados=$((instalados + 1))
-            concluidos+=("$p")
-        else
+            if executar_pkg_monitorado "Instalando Ferramentas" "$pct" "$(( indice * 100 / total ))" \
+                "Pacote atual: $p" "$indice de $total • $restantes restante(s)" -- install -y "$p"; then
+                instalados=$((instalados + 1))
+                concluidos+=("$p")
+                break
+            fi
+            rc=$?
+
+            if [ "${WIZARD_MODE:-false}" = true ]; then
+                encerrar_ui_termux
+                if [ "$rc" -eq 130 ]; then
+                    cabecalho_tela "⏸ Instalação pausada" "Pacote atual: $p"
+                    caixa_simples "Ctrl+C recebido" \
+                        "O Manager não foi encerrado." \
+                        "O progresso anterior foi preservado." \
+                        "Escolha como continuar."
+                else
+                    cabecalho_tela "⚠ Pacote não concluído" "Pacote atual: $p"
+                    caixa_simples "Falha controlada" \
+                        "Código: ${LAST_PKG_EXIT_CODE:-$rc}" \
+                        "O Manager pode tentar novamente sem reiniciar o assistente." \
+                        "Log: $(caminho_curto "$TERMUX_SETUP_LOG")"
+                fi
+                printf '\n[1] Tentar novamente  [2] Pular este pacote  [3] Retomar depois\n> '
+                IFS= read -r escolha
+                case "$escolha" in
+                    1)
+                        tentativas=$((tentativas + 1))
+                        if [ -n "$(dpkg --audit 2>/dev/null)" ]; then
+                            reparar_dpkg_automaticamente "Reparando antes de tentar $p novamente" || true
+                        fi
+                        continue
+                        ;;
+                    2)
+                        pulados=$((pulados + 1))
+                        concluidos+=("$p (pulado)")
+                        log "WARN" "Pacote recomendado pulado pelo usuário durante o wizard: $p"
+                        break
+                        ;;
+                    3)
+                        log "INFO" "Wizard pausado durante a instalação do pacote $p; será retomado na próxima abertura."
+                        return 130
+                        ;;
+                    *)
+                        feedback_curto "Opção inválida; tentando novamente."
+                        continue
+                        ;;
+                esac
+            fi
+
             falhas=$((falhas + 1))
             concluidos+=("$p (falhou)")
             log "ERROR" "Falha ao instalar pacote Termux: $p"
-        fi
+            break
+        done
     done
 
     tela_operacao_termux "Instalando Ferramentas" 100 \
         "Instalação concluída." \
-        "$instalados instalado(s) • $falhas falha(s)" \
+        "$instalados instalado(s) • $falhas falha(s) • $pulados pulado(s)" \
         "✔ Pacotes processados: $total" \
         "✔ Instalações concluídas: $instalados" \
         "$([ "$falhas" -gt 0 ] && echo "⚠ Falhas: $falhas" || echo "✔ Nenhuma falha")" \
@@ -780,12 +918,14 @@ instalar_lista_pacotes() {
     if [ "$falhas" -eq 0 ]; then
         caixa_simples "✅ $titulo" \
             "Pacotes instalados: $instalados" \
+            "Pacotes pulados: $pulados" \
             "Gerenciador usado: pkg do Termux" \
             "Log: $(caminho_curto "$TERMUX_SETUP_LOG")"
     else
         caixa_simples "⚠ $titulo" \
             "Instalados: $instalados" \
             "Falhas: $falhas" \
+            "Pulados: $pulados" \
             "Log: $(caminho_curto "$TERMUX_SETUP_LOG")"
     fi
     [ "${WIZARD_MODE:-false}" = true ] || pause
@@ -1035,41 +1175,110 @@ assistente_primeira_execucao() {
     [ -f "$FIRST_RUN_FILE" ] && return 0
 
     cabecalho_tela "👋 Bem-vindo ao Manager.sh" "Configuração inicial"
-    caixa_simples "Etapas do assistente"         "1. Liberar acesso ao armazenamento"         "2. Atualizar os pacotes do Termux"         "3. Instalar ferramentas recomendadas"         "4. Abrir o menu principal"
+    caixa_simples "Etapas do assistente" \
+        "1. Liberar acesso ao armazenamento" \
+        "2. Atualizar os pacotes do Termux" \
+        "3. Instalar ferramentas recomendadas" \
+        "4. Configurar o atalho global"
 
-    if ! confirmar_acao "Iniciar a configuração guiada agora?" "s"; then
-        touch "$FIRST_RUN_FILE" 2>/dev/null || true
+    if [ -f "${FIRST_RUN_STATE_FILE:-}" ]; then
+        local -a progresso=()
+        while IFS= read -r linha; do [ -n "$linha" ] && progresso+=("$linha"); done < <(first_run_progress_summary)
+        caixa_simples "↩ Retomando configuração" \
+            "Etapas concluídas não serão repetidas." \
+            "${progresso[@]}"
+    fi
+
+    if ! confirmar_acao "Iniciar/continuar a configuração guiada agora?" "s"; then
+        caixa_simples "Configuração adiada" \
+            "Nada foi marcado como concluído." \
+            "O assistente aparecerá novamente na próxima abertura."
+        pause
         return 0
     fi
 
     WIZARD_MODE=true
 
-    # Etapa 1 — armazenamento. Não retorna para um submenu do wizard.
-    if [ ! -d "$HOME/storage" ]; then
-        configurar_armazenamento
+    # Etapa 1 — armazenamento. Não bloqueia o restante se a permissão ainda
+    # depender da confirmação visual do Android, mas só marca a etapa quando
+    # ~/storage realmente existir.
+    if ! first_run_stage_done storage; then
+        if [ ! -d "$HOME/storage" ]; then
+            configurar_armazenamento
+        fi
+        if [ -d "$HOME/storage" ]; then
+            first_run_mark_stage storage
+        else
+            log "WARN" "Wizard: armazenamento ainda não foi liberado; etapa seguirá pendente."
+        fi
     fi
 
-    # Etapa 2 — atualização do sistema. Só avança se concluir de verdade.
-    if ! atualizar_pacotes_termux; then
-        WIZARD_MODE=false
-        return 1
+    # Etapa 2 — atualização do sistema. Uma vez concluída, não é repetida ao
+    # retomar o wizard depois de uma interrupção na instalação das ferramentas.
+    if ! first_run_stage_done update; then
+        if ! atualizar_pacotes_termux; then
+            WIZARD_MODE=false
+            cabecalho_tela "⚠ Configuração pausada" "Atualização do Termux não foi concluída"
+            caixa_simples "Progresso preservado" \
+                "O Manager pode ser usado normalmente." \
+                "O assistente retomará esta etapa na próxima abertura." \
+                "Log: $(caminho_curto "$TERMUX_SETUP_LOG")"
+            pause
+            return 0
+        fi
+        first_run_mark_stage update
     fi
 
-    # Etapa 3 — conjunto recomendado para uso do Manager e edição no Termux.
-    if ! instalar_lista_pacotes "Ferramentas recomendadas" nano micro fish git curl wget zip unzip jq; then
-        WIZARD_MODE=false
-        cabecalho_tela "⚠ Configuração incompleta" "Algumas ferramentas não foram instaladas"
-        caixa_simples "Consulte o log" "$(caminho_curto "$TERMUX_SETUP_LOG")" "O assistente será executado novamente na próxima abertura."
-        pause
-        return 1
+    # Etapa 3 — cada pacote já instalado é detectado automaticamente. Ctrl+C
+    # abre opções dentro da etapa e não encerra o Manager.
+    if ! first_run_stage_done tools; then
+        local ferramentas_rc=0
+        if instalar_lista_pacotes "Ferramentas recomendadas" nano micro fish git curl wget zip unzip jq; then
+            ferramentas_rc=0
+        else
+            ferramentas_rc=$?
+        fi
+        if [ "$ferramentas_rc" -eq 130 ]; then
+            WIZARD_MODE=false
+            cabecalho_tela "⏸ Configuração pausada" "Você escolheu retomar depois"
+            caixa_simples "Progresso preservado" \
+                "Pacotes já instalados não serão reinstalados." \
+                "A atualização do Termux também não será repetida." \
+                "O assistente continuará do pacote pendente na próxima abertura."
+            pause
+            return 0
+        elif [ "$ferramentas_rc" -ne 0 ]; then
+            WIZARD_MODE=false
+            cabecalho_tela "⚠ Configuração incompleta" "Algumas ferramentas não foram instaladas"
+            caixa_simples "Consulte o log" \
+                "$(caminho_curto "$TERMUX_SETUP_LOG")" \
+                "O progresso foi preservado e o assistente retomará na próxima abertura."
+            pause
+            return 0
+        fi
+        first_run_mark_stage tools
     fi
 
     WIZARD_MODE=false
 
     # Etapa 4 — cria um comando global independente do Bash/Fish.
-    configurar_atalho_primeira_execucao
+    if ! first_run_stage_done shortcut; then
+        configurar_atalho_primeira_execucao
+        first_run_mark_stage shortcut
+    fi
+
+    # Só conclui definitivamente quando o armazenamento também estiver
+    # disponível. As demais etapas permanecem salvas e não serão repetidas.
+    if ! first_run_stage_done storage; then
+        cabecalho_tela "⚠ Configuração quase concluída" "Falta liberar o armazenamento"
+        caixa_simples "Progresso preservado"             "Atualização, ferramentas e atalhos já concluídos não serão repetidos."             "Na próxima abertura, aceite a permissão de armazenamento do Android."             "Depois disso o assistente finalizará automaticamente."
+        pause
+        return 0
+    fi
 
     touch "$FIRST_RUN_FILE" 2>/dev/null || true
+    rm -f "${FIRST_RUN_STATE_FILE:-}" 2>/dev/null || true
 
     tela_conclusao_primeira_execucao
 }
+

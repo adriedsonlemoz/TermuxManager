@@ -19,7 +19,9 @@ ajuda_primeira_instalacao() {
         "Instala, preserva backup da versão anterior e abre o Manager."
     echo
     caixa_simples "Primeira abertura" \
-        "O próprio assistente libera o armazenamento e prepara as ferramentas." \
+        "O assistente salva o progresso de cada etapa e retoma de onde parou." \
+        "Durante pkg/apt, tempo e atividade continuam visíveis mesmo sem nova saída." \
+        "Ctrl+C abre opções seguras para tentar novamente, pular ou retomar depois." \
         "Depois da configuração, abra normalmente com: manager"
     echo
     caixa_simples "Alternativa manual" \

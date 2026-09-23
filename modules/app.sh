@@ -244,7 +244,8 @@ main() {
     adquirir_bloqueio || { pause; exit 1; }
     limpar_temporarios_antigos
     trap finalizar_manager EXIT
-    trap 'echo; warn "Operação interrompida."; exit 130' INT TERM
+    trap 'echo; warn "Operação interrompida fora de uma instalação monitorada."; exit 130' INT
+    trap 'echo; warn "Sessão encerrada pelo sistema."; exit 143' TERM
     check_base_packages
     rotacionar_log "$LOG_FILE"
     log "INFO" "===== manager.sh v$MANAGER_VERSION iniciado ====="

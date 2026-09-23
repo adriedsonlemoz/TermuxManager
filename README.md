@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.71  
+**Versão atual:** 1.0.72  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -108,6 +108,8 @@ Esse fluxo **não depende de uma GitHub Release publicada**. Enquanto `main` for
 > O comando recomendado não executa mais `pkg install curl` toda vez. Se o seu Termux realmente não tiver `curl`, instale-o uma única vez com `pkg install curl` e repita o comando.
 
 Na primeira abertura, o próprio Manager solicita acesso ao armazenamento, atualiza o ambiente, instala as ferramentas recomendadas e configura o comando global `manager`.
+
+A primeira configuração é retomável: cada etapa concluída é salva. Se uma instalação de pacote ficar sem novas mensagens, o Manager continua mostrando **tempo decorrido** e **tempo desde a última atividade** em vez de parecer congelado. `Ctrl+C` durante uma instalação monitorada não fecha mais o Manager; abre opções para **tentar novamente**, **pular o pacote** ou **retomar depois**. Ao abrir novamente, etapas já concluídas e pacotes já instalados não são repetidos.
 
 Depois da configuração inicial, basta abrir com:
 
@@ -255,10 +257,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.71
-Tag: v1.0.71
-Release: Manager 1.0.71
-Pacote único: TermuxManager-v1.0.71.zip
+Versão: 1.0.72
+Tag: v1.0.72
+Release: Manager 1.0.72
+Pacote único: TermuxManager-v1.0.72.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

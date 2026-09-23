@@ -722,7 +722,7 @@ menu_atalhos_manager() {
 limpar_estado_interno_manager() {
     # Remove somente dados internos do Manager. Projetos e backups do usuário
     # permanecem intactos em ~/Painel/projetos e ~/Painel/backups.
-    rm -f "$CONFIG_FILE" "$FIRST_RUN_FILE" 2>/dev/null || true
+    rm -f "$CONFIG_FILE" "$FIRST_RUN_FILE" "${FIRST_RUN_STATE_FILE:-}" 2>/dev/null || true
     rm -rf "$PID_DIR" "$TMP_ROOT" "$PAINEL_DIR/.manager.lock" 2>/dev/null || true
     rm -rf "$BASE_DIR/cache" "$BASE_DIR/tmp" "$BASE_DIR/.updates" 2>/dev/null || true
     rm -rf "$LOG_DIR" 2>/dev/null || true
@@ -784,7 +784,7 @@ desinstalar_manager_completamente() {
 #!/data/data/com.termux/files/usr/bin/bash
 sleep 1
 rm -rf -- $(printf '%q' "$BASE_DIR")
-rm -f -- $(printf '%q' "$FIRST_RUN_FILE")
+rm -f -- $(printf '%q' "$FIRST_RUN_FILE") $(printf '%q' "${FIRST_RUN_STATE_FILE:-$HOME/.manager_first_run.state}")
 rm -rf -- $(printf '%q' "$PID_DIR") $(printf '%q' "$TMP_ROOT") $(printf '%q' "$LOG_DIR")
 rm -f -- $(printf '%q' "$CONFIG_FILE")
 for atalho in $(printf '%q' "$(manager_atalho_path manager)") $(printf '%q' "$(manager_atalho_path mm)"); do

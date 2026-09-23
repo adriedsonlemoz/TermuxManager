@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.72] - 2026-09-23
+
+- Primeira configuração agora salva progresso por etapa e retoma de onde parou; atualização do Termux e pacotes já concluídos não são repetidos após uma interrupção.
+- Monitor de `apt/pkg` passou a exibir tempo decorrido e tempo desde a última saída, evitando a impressão de congelamento quando um pacote demora.
+- `apt-get` usa tentativas e timeouts controlados de rede/lock para reduzir esperas indefinidas em repositórios lentos.
+- `Ctrl+C` durante uma instalação monitorada não encerra mais o Manager: abre opções para tentar novamente, pular o pacote ou retomar a configuração depois.
+- Ao adiar a configuração inicial, o Manager não marca mais o assistente como concluído; ele volta na próxima abertura.
+- Restauração/desinstalação também removem o novo estado parcial do assistente.
+
 ## [1.0.71] - 2026-09-23
 
 - Primeira instalação deixou de executar `pkg install -y curl` sem necessidade; o comando recomendado agora chama diretamente o instalador quando `curl` já está disponível.
