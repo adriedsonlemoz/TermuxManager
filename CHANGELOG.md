@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.74] - 2026-09-23
+
+### Melhorado
+- A etapa de atualização do Termux na primeira configuração agora exibe uma **mensagem clara de transição** informando que a atualização já terminou e que o assistente continuará automaticamente para instalar as ferramentas recomendadas.
+- Quando a atualização é executada fora do assistente, a tela final agora mostra explicitamente **"Pressione ENTER para continuar"**, reduzindo a sensação de travamento.
+- A tela de instalação de ferramentas passou a exibir também a **origem detectada do Termux**, o **repositório** e um bloco de **compatibilidade** quando houver pacotes indisponíveis na variante atual.
+
+### Corrigido
+- Evitada a falsa impressão de que o Manager travou logo após a tela **"Ambiente Termux preparado"** durante a primeira execução.
+
 ## [1.0.73] - 2026-09-23
 
 ### Adicionado

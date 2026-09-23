@@ -825,7 +825,15 @@ atualizar_pacotes_termux() {
     [ ${#mensagens_resumo[@]} -gt 0 ] || mensagens_resumo=("Nenhuma mensagem pendente.")
     caixa_simples "Últimas mensagens" "${mensagens_resumo[@]}"
     printf '\nLog completo: %s\n' "$(caminho_curto "$TERMUX_SETUP_LOG")"
-    [ "${WIZARD_MODE:-false}" = true ] || pause
+    if [ "${WIZARD_MODE:-false}" = true ]; then
+        echo
+        caixa_simples "➡ Próxima etapa"             "A atualização do Termux já terminou."             "O assistente vai continuar automaticamente para instalar as ferramentas recomendadas."             "Se esta tela continuar visível por alguns segundos, isso não é travamento."             "Não use Ctrl+C aqui, a menos que realmente queira interromper a configuração."
+        printf '\nProsseguindo automaticamente em 3 segundos...\n'
+        sleep 3
+    else
+        printf '\nPressione ENTER para continuar...'
+        read -r _
+    fi
     return 0
 }
 
@@ -905,10 +913,17 @@ instalar_lista_pacotes() {
 
     cabecalho_tela "🧰 Instalar ferramentas" "$titulo"
     caixa_simples "Sistema do Termux" \
+        "Origem detectada: $(termux_origem_resumida)" \
+        "Repositório: $(termux_repositorio_resumido)" \
         "A instalação será feita pelo pkg oficial." \
-        "Não é uma instalação interna do Manager." \
         "Pacotes ausentes: ${#faltando[@]}"
     caixa_simples "Pacotes" "${faltando[*]}"
+    if [ ${#indisponiveis[@]} -gt 0 ]; then
+        caixa_simples "Compatibilidade" \
+            "Alguns pacotes não existem nesta edição do Termux." \
+            "Eles serão marcados como indisponíveis e não contam como falha." \
+            "${indisponiveis[*]}"
+    fi
     if [ "${WIZARD_MODE:-false}" != true ]; then
         confirmar_acao "Continuar com a instalação?" || return 1
     fi
