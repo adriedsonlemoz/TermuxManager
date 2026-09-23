@@ -366,6 +366,22 @@ pid_estado_pkg() {
     awk '/^State:/{print $2; exit}' "/proc/$pid/status" 2>/dev/null || true
 }
 
+pids_gerenciador_pacotes_ativos() {
+    local proc pid nome estado
+    for proc in /proc/[0-9]*; do
+        [ -r "$proc/comm" ] || continue
+        IFS= read -r nome < "$proc/comm" || continue
+        case "$nome" in
+            apt|apt-get|dpkg|dpkg-deb)
+                pid="${proc##*/}"
+                estado="$(pid_estado_pkg "$pid")"
+                [ "$estado" = Z ] && continue
+                printf '%s ' "$pid"
+                ;;
+        esac
+    done
+}
+
 pid_ou_filho_parado() {
     # Prompts interativos geralmente ficam em apt/dpkg/termux-change-repo,
     # filhos do processo pkg. Verificar só o PID principal não os detecta.
@@ -453,6 +469,28 @@ executar_pkg_monitorado() {
     shift 5
     [ "${1:-}" = "--" ] && shift
     local args=("$@") pid rc estado linhas assinatura iter=0
+    local lock_pids lock_inicio=$SECONDS lock_decorrido lock_timeout="${TERMUX_MANAGER_PKG_LOCK_TIMEOUT:-180}"
+    while :; do
+        lock_pids="$(pids_gerenciador_pacotes_ativos)"
+        lock_pids="${lock_pids% }"
+        [ -z "$lock_pids" ] && break
+        lock_decorrido=$((SECONDS - lock_inicio))
+        if [ "$lock_decorrido" -ge "$lock_timeout" ]; then
+            LAST_PKG_COMMAND="aguardar liberação do apt/dpkg"
+            LAST_PKG_EXIT_CODE=75
+            log "ERROR" "Gerenciador de pacotes ocupado por PID(s): $lock_pids após ${lock_decorrido}s"
+            return 75
+        fi
+        tela_operacao_termux "$titulo" "$pct" \
+            "Aguardando o gerenciador de pacotes..." \
+            "Outra instalação/atualização está em andamento." \
+            "⏳ apt/dpkg ocupado" "PID(s): $lock_pids" \
+            "O Manager continuará automaticamente quando for liberado." \
+            "Tempo de espera: ${lock_decorrido}s de ${lock_timeout}s" \
+            "Nenhum comando concorrente será iniciado."
+        sleep 2
+    done
+
     local -a comando_exec=()
     case "${args[0]:-}" in
         update)

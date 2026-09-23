@@ -45,8 +45,8 @@ hash_pacote_manager() {
 versao_nome_pacote() {
     local nome
     nome="$(basename "$1")"
-    if [[ "$nome" =~ ^manager-v([0-9]+\.[0-9]+\.[0-9]+)\.zip$ ]]; then
-        printf '%s' "${BASH_REMATCH[1]}"
+    if [[ "$nome" =~ ^(TermuxManager|manager)-v([0-9]+\.[0-9]+\.[0-9]+)\.zip$ ]]; then
+        printf '%s' "${BASH_REMATCH[2]}"
     else
         printf '%s' "não padronizado"
     fi

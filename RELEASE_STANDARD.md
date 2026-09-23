@@ -8,7 +8,7 @@ O projeto usa Versionamento Semântico: `MAJOR.MINOR.PATCH`.
 - **MINOR:** nova funcionalidade compatível;
 - **PATCH:** correção, documentação ou melhoria visual sem quebra de compatibilidade.
 
-Versão atual de referência: `1.0.70`.
+Versão atual de referência: `1.0.71`.
 
 ## Padrão da release
 
@@ -18,18 +18,18 @@ Para a versão `X.Y.Z`, usar obrigatoriamente:
 Versão interna: X.Y.Z
 Tag: vX.Y.Z
 Título: Manager X.Y.Z
-Pacote: manager-vX.Y.Z.zip
-Checksum: manager-vX.Y.Z.sha256
+Pacote único: TermuxManager-vX.Y.Z.zip
+Integridade: MANIFEST.json dentro do pacote
 ```
 
 Para a versão atual:
 
 ```text
-Versão interna: 1.0.70
-Tag: v1.0.70
-Título: Manager 1.0.70
-Pacote: manager-v1.0.70.zip
-Checksum: manager-v1.0.70.sha256
+Versão interna: 1.0.71
+Tag: v1.0.71
+Título: Manager 1.0.71
+Pacote único: TermuxManager-v1.0.71.zip
+Integridade: MANIFEST.json dentro do pacote
 ```
 
 Nunca reutilizar uma tag ou substituir silenciosamente o arquivo de uma versão publicada. Qualquer correção exige novo número.
@@ -69,10 +69,10 @@ chore: manutenção ou release
 2. executar validações Bash;
 3. atualizar `MANIFEST.json` e seus hashes;
 4. executar `tools/build-release.sh`;
-5. verificar o checksum gerado;
+5. validar o SHA-256 exibido pelo build e os hashes internos do `MANIFEST.json`;
 6. criar a tag `vX.Y.Z`;
-7. criar a GitHub Release `Manager X.Y.Z`;
-8. anexar o ZIP e o SHA-256;
+7. criar a GitHub Release `Manager X.Y.Z` quando esse canal for usado;
+8. anexar somente `TermuxManager-vX.Y.Z.zip`;
 9. publicar as notas com o resumo do `CHANGELOG.md`.
 
 ## Validação mínima
@@ -81,7 +81,7 @@ chore: manutenção ou release
 bash -n manager.sh
 for arquivo in modules/*.sh; do bash -n "$arquivo" || exit 1; done
 bash tools/build-release.sh
-sha256sum -c dist/manager-vX.Y.Z.sha256
+sha256sum dist/TermuxManager-vX.Y.Z.zip
 ```
 
 

@@ -1,7 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # Instalador oficial do Termux Manager.
 # Uso recomendado:
-#   pkg install -y curl && curl -fsSL https://raw.githubusercontent.com/adriedsonlemoz/TermuxManager/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/adriedsonlemoz/TermuxManager/main/install.sh | bash
 
 set -Euo pipefail
 
@@ -23,18 +23,68 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 command -v pkg >/dev/null 2>&1 || fail "Este instalador deve ser executado dentro do Termux."
-command -v curl >/dev/null 2>&1 || fail "curl não foi encontrado. Execute: pkg install -y curl"
+command -v curl >/dev/null 2>&1 || fail "curl não foi encontrado. Execute 'pkg install curl' e tente novamente."
+
+pids_pkg_ativos() {
+    local proc pid nome estado
+    for proc in /proc/[0-9]*; do
+        [ -r "$proc/comm" ] || continue
+        IFS= read -r nome < "$proc/comm" || continue
+        case "$nome" in
+            apt|apt-get|dpkg|dpkg-deb)
+                pid="${proc##*/}"
+                estado="$(awk '/^State:/{print $2; exit}' "$proc/status" 2>/dev/null || true)"
+                [ "$estado" = "Z" ] && continue
+                printf '%s ' "$pid"
+                ;;
+        esac
+    done
+}
+
+aguardar_pkg_livre() {
+    local timeout="${TERMUX_MANAGER_PKG_LOCK_TIMEOUT:-180}"
+    local inicio=$SECONDS decorrido pids anunciou=0 ultima=-1
+    while :; do
+        pids="$(pids_pkg_ativos)"
+        pids="${pids% }"
+        [ -z "$pids" ] && break
+        decorrido=$((SECONDS - inicio))
+        if [ "$decorrido" -ge "$timeout" ]; then
+            [ "$anunciou" -eq 1 ] && [ -t 1 ] && printf '\n'
+            fail "O gerenciador de pacotes continua ocupado (PID(s): $pids). Aguarde a outra instalação terminar e execute o instalador novamente."
+        fi
+        if [ -t 1 ]; then
+            printf '\r⏳ O Termux já está instalando/atualizando pacotes. Aguardando... %ss/%ss  ' "$decorrido" "$timeout"
+            anunciou=1
+        elif [ "$ultima" -lt 0 ] || [ $((decorrido - ultima)) -ge 15 ]; then
+            printf '⏳ Gerenciador de pacotes ocupado (PID(s): %s). Aguardando... %ss/%ss\n' "$pids" "$decorrido" "$timeout"
+            ultima="$decorrido"
+            anunciou=1
+        fi
+        sleep 2
+    done
+    if [ "$anunciou" -eq 1 ]; then
+        [ -t 1 ] && printf '\n'
+        ok "Gerenciador de pacotes liberado."
+    fi
+}
+
+mkdir -p "$TMP_BASE"
+TMP_DIR="$(mktemp -d "$TMP_BASE/termux-manager-install.XXXXXX")" || fail "Não foi possível criar a pasta temporária."
 
 necessarios=()
 command -v unzip >/dev/null 2>&1 || necessarios+=(unzip)
 command -v sha256sum >/dev/null 2>&1 || necessarios+=(coreutils)
 if [ ${#necessarios[@]} -gt 0 ]; then
-    info "Preparando ferramentas necessárias"
-    pkg install -y "${necessarios[@]}" || fail "Não foi possível instalar as ferramentas necessárias."
+    aguardar_pkg_livre
+    info "Preparando ferramentas necessárias: ${necessarios[*]}"
+    pkg_log="$TMP_DIR/pkg-install.log"
+    if ! pkg install -y "${necessarios[@]}" >"$pkg_log" 2>&1; then
+        printf '%s\n' "Últimas mensagens do pkg:" >&2
+        tail -n 12 "$pkg_log" >&2 2>/dev/null || true
+        fail "Não foi possível instalar as ferramentas necessárias."
+    fi
 fi
-
-mkdir -p "$TMP_BASE"
-TMP_DIR="$(mktemp -d "$TMP_BASE/termux-manager-install.XXXXXX")" || fail "Não foi possível criar a pasta temporária."
 archive_path="$TMP_DIR/TermuxManager.zip"
 source_dir="$TMP_DIR/source"
 mkdir -p "$source_dir"

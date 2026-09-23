@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.70  
+**Versão atual:** 1.0.71  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -89,21 +89,23 @@ A edição do Google Play é mantida separadamente da edição GitHub/F-Droid e 
 No Termux, copie e execute **esta linha inteira**:
 
 ```bash
-pkg install -y curl && curl -fsSL https://raw.githubusercontent.com/adriedsonlemoz/TermuxManager/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/adriedsonlemoz/TermuxManager/main/install.sh | bash
 ```
 
 Pronto. O instalador oficial faz automaticamente o restante:
 
 1. baixa a versão estável diretamente da branch `main` do repositório;
-2. instala `unzip`/ferramentas básicas se estiverem faltando;
-3. extrai o projeto e confere a versão declarada;
-4. valida os hashes de todos os arquivos listados em `MANIFEST.json`;
-5. valida `manager.sh` e os módulos com `bash -n`;
-6. instala em `~/scripts/manager`;
-7. preserva um backup se já existir uma instalação;
+2. verifica se `unzip`/ferramentas básicas já existem antes de instalar qualquer pacote;
+3. se outro `apt`/`dpkg` estiver trabalhando, aguarda a liberação e mostra apenas um status controlado, sem repetir dezenas de linhas de `Waiting for cache lock`;
+4. extrai o projeto e confere a versão declarada;
+5. valida os hashes de todos os arquivos listados em `MANIFEST.json`;
+6. valida `manager.sh` e os módulos com `bash -n`;
+7. instala em `~/scripts/manager`, preservando backup da instalação anterior;
 8. abre o Termux Manager.
 
 Esse fluxo **não depende de uma GitHub Release publicada**. Enquanto `main` for o canal estável do projeto, o comando acima continua funcionando mesmo que a página de Releases esteja vazia.
+
+> O comando recomendado não executa mais `pkg install curl` toda vez. Se o seu Termux realmente não tiver `curl`, instale-o uma única vez com `pkg install curl` e repita o comando.
 
 Na primeira abertura, o próprio Manager solicita acesso ao armazenamento, atualiza o ambiente, instala as ferramentas recomendadas e configura o comando global `manager`.
 
@@ -253,11 +255,11 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.70
-Tag: v1.0.70
-Release: Manager 1.0.70
-Pacote: manager-v1.0.70.zip
-Checksum: manager-v1.0.70.sha256
+Versão: 1.0.71
+Tag: v1.0.71
+Release: Manager 1.0.71
+Pacote único: TermuxManager-v1.0.71.zip
+Integridade: MANIFEST.json dentro do próprio pacote
 ```
 
 ### Transição da versão 1.0.44

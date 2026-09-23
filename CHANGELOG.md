@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.71] - 2026-09-23
+
+- Primeira instalação deixou de executar `pkg install -y curl` sem necessidade; o comando recomendado agora chama diretamente o instalador quando `curl` já está disponível.
+- O instalador detecta `apt`/`dpkg` já em execução, aguarda de forma controlada e evita inundar o terminal com mensagens repetidas de `Waiting for cache lock`.
+- O monitor de pacotes do assistente também espera operações concorrentes antes de iniciar outro `apt`/`dpkg`.
+- Padronizada a entrega em um único arquivo `TermuxManager-vX.Y.Z.zip`; o checksum externo separado foi removido do padrão e a integridade continua protegida pelos hashes internos de `MANIFEST.json`.
+- `build-release.sh`, README, ajuda interna, updater e padrão de release foram sincronizados com o pacote único.
+- Adicionado teste automático de sincronização de versão/release para evitar documentação e metadados divergentes.
+
 ## [1.0.70] - 2026-09-23
 
 ### Correção do instalador automático

@@ -11,7 +11,10 @@ grep -Fq 'archive/refs/heads/${BRANCH}.zip' "$INSTALLER"
 ! grep -Fq 'releases/latest' "$INSTALLER"
 grep -Fq 'MANIFEST.json' "$INSTALLER"
 grep -Fq 'Manifesto validado' "$INSTALLER"
-grep -Fq 'raw.githubusercontent.com/adriedsonlemoz/TermuxManager/main/install.sh' "$README"
+grep -Fq 'curl -fsSL https://raw.githubusercontent.com/adriedsonlemoz/TermuxManager/main/install.sh | bash' "$README"
+! grep -Fq 'pkg install -y curl && curl -fsSL' "$README"
+grep -Fq 'aguardar_pkg_livre' "$INSTALLER"
+grep -Fq 'pids_pkg_ativos' "$INSTALLER"
 
 mkdir -p "$TMP/fixture/TermuxManager-main" "$TMP/fakebin" "$TMP/home" "$TMP/prefix" "$TMP/tmp"
 cp -a "$ROOT_DIR"/. "$TMP/fixture/TermuxManager-main/"
@@ -37,6 +40,6 @@ bash "$INSTALLER" >/dev/null
 
 [ -f "$TMP/home/scripts/manager/manager.sh" ]
 [ -f "$TMP/home/scripts/manager/MANIFEST.json" ]
-grep -Fq 'MANAGER_VERSION="1.0.70"' "$TMP/home/scripts/manager/manager.sh"
+grep -Fq 'MANAGER_VERSION="1.0.71"' "$TMP/home/scripts/manager/manager.sh"
 
 echo "OK: instalador baixa a branch main, valida o manifesto e instala sem depender de GitHub Releases."

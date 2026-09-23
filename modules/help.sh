@@ -10,13 +10,13 @@ ajuda_primeira_instalacao() {
     echo
     caixa_simples "2. Instalar o Manager" \
         "Copie esta linha inteira no Termux:" \
-        "pkg install -y curl && curl -fsSL https://raw.githubusercontent.com/adriedsonlemoz/TermuxManager/main/install.sh | bash"
+        "curl -fsSL https://raw.githubusercontent.com/adriedsonlemoz/TermuxManager/main/install.sh | bash"
     echo
     caixa_simples "O instalador faz sozinho" \
         "Baixa a versão estável diretamente da branch main." \
+        "Se apt/dpkg estiver ocupado, aguarda sem inundar a tela." \
         "Valida os hashes declarados em MANIFEST.json e a sintaxe dos scripts." \
-        "Instala, preserva backup da versão anterior e abre o Manager." \
-        "Não depende de GitHub Releases nem de um ZIP em Downloads."
+        "Instala, preserva backup da versão anterior e abre o Manager."
     echo
     caixa_simples "Primeira abertura" \
         "O próprio assistente libera o armazenamento e prepara as ferramentas." \
@@ -32,7 +32,7 @@ ajuda_primeira_instalacao() {
 ajuda_atualizacoes() {
     cabecalho_tela "🔄 Como atualizar" "Pacote completo ou módulo individual"
     caixa_simples "Atualização completa" \
-        "1. Coloque manager-vX.Y.Z.zip em Downloads." \
+        "1. Coloque TermuxManager-vX.Y.Z.zip em Downloads." \
         "2. Abra Atualizar Manager." \
         "3. Escolha Atualização completa." \
         "O Manager valida, calcula espaço, cria backup e aplica a nova versão."
