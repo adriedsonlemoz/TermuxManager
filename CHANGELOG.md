@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.68] - 2026-09-23
+
+### Primeira instalação
+- Reescrito o tutorial inicial do README em etapas, começando pela instalação do próprio Termux.
+- Adicionados links oficiais para o Termux via GitHub e Google Play, com explicação das diferenças entre as distribuições.
+- Documentado que a edição atual do Google Play exige Android 11 ou superior e é mantida separadamente da edição GitHub/F-Droid.
+- Adicionado link direto para as releases do Termux Manager e aviso para não usar `Source code (zip)`/`Code > Download ZIP` no lugar do pacote `manager-vX.Y.Z.zip`.
+- Melhoradas as instruções de `termux-setup-storage`, Downloads, `unzip`, primeira abertura e solução de pacote não encontrado/`Permission denied`.
+- Ajuda interna de primeira instalação atualizada para acompanhar o novo fluxo.
+- README e padrão de release sincronizados com a versão atual.
+
 ## [1.0.67] - 2026-08-10
 
 ### Desempenho pós-cópia

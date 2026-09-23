@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.64  
+**Versão atual:** 1.0.68  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -49,18 +49,103 @@ Ao executar frontend + backend juntos, o Manager usa um painel único com quatro
 - Centro de exclusão do Painel com vários níveis de remoção;
 - renderização atômica dos menus, sem linhas “caindo” ou prompts sobrepostos.
 
-## Requisitos
-
-- Android com Termux instalado;
-- acesso ao armazenamento concedido ao Termux;
-- pacote `manager-vX.Y.Z.zip` salvo em Downloads;
-- pacote `unzip` instalado.
-
 ## Primeira instalação
+
+Esta seção foi escrita para quem está começando do zero. Primeiro instale o **Termux**, depois baixe o pacote correto do **Termux Manager** e só então execute os comandos de instalação.
+
+### 1. Instale o Termux
+
+Abaixo estão duas formas atuais de instalar o Termux. As edições não são exatamente iguais, portanto escolha uma fonte e mantenha os complementos do Termux em uma origem compatível.
+
+#### Opção A — Termux pelo GitHub
+
+Página oficial de releases:
+
+**https://github.com/termux/termux-app/releases**
+
+1. Abra o link acima no navegador.
+2. Entre na release estável mais recente.
+3. Abra a área **Assets**.
+4. Em Android 7 ou superior, escolha uma variante `apt-android-7` compatível com o aparelho.
+5. Instale o APK baixado e abra o Termux.
+6. Aguarde a preparação inicial do ambiente terminar antes de digitar comandos.
+
+> **Importante:** se você utiliza Termux:API, Termux:Widget, Termux:Boot ou outro complemento, não misture APKs de fontes diferentes. Aplicativo principal e complementos precisam usar uma origem compatível.
+
+#### Opção B — Termux pelo Google Play
+
+Página oficial no Google Play:
+
+**https://play.google.com/store/apps/details?id=com.termux**
+
+1. Abra o link acima ou procure por **Termux**, publicado por **Fredrik Fornwall**.
+2. Instale o aplicativo normalmente.
+3. Abra o Termux e aguarde a instalação do sistema básico terminar.
+4. Depois siga os mesmos passos de instalação do Termux Manager mostrados abaixo.
+
+A edição do Google Play voltou a receber atualizações, mas é mantida em uma base separada da edição tradicional do GitHub/F-Droid. Atualmente ela exige **Android 11 ou superior** e alguns recursos/complementos do Termux podem funcionar de forma diferente. Para acompanhar as diferenças dessa edição, consulte:
+
+**https://github.com/termux-play-store**
+
+### 2. Baixe o Termux Manager
+
+Abra a página de releases do projeto:
+
+**https://github.com/adriedsonlemoz/TermuxManager/releases**
+
+Na release mais recente, baixe o arquivo:
+
+```text
+manager-vX.Y.Z.zip
+```
+
+Exemplo para esta versão:
+
+```text
+manager-v1.0.68.zip
+```
+
+Deixe o ZIP na pasta **Downloads** do Android.
+
+> **Não baixe** `Source code (zip)`, `Source code (tar.gz)` nem use **Code → Download ZIP** para fazer a instalação. Esses arquivos são cópias do código-fonte do repositório e não são o pacote de release esperado pelo instalador.
+
+Se quiser conferir a integridade manualmente, a release também pode fornecer:
+
+```text
+manager-vX.Y.Z.sha256
+```
+
+### 3. Prepare o Termux
+
+Na primeira abertura, espere o Termux concluir a preparação do ambiente. Depois atualize a lista de pacotes:
+
+```bash
+pkg update -y
+```
+
+Libere o acesso à pasta compartilhada do Android:
 
 ```bash
 termux-setup-storage
+```
+
+Quando o Android solicitar acesso aos arquivos, toque em **Permitir**. Depois confirme que a pasta Downloads ficou acessível em:
+
+```text
+~/storage/downloads
+```
+
+Instale o utilitário necessário para extrair o Manager:
+
+```bash
 pkg install unzip -y
+```
+
+### 4. Instale o Termux Manager
+
+Com `manager-vX.Y.Z.zip` já salvo em Downloads, execute:
+
+```bash
 PACOTE="$(ls -t ~/storage/downloads/manager-v*.zip 2>/dev/null | head -n 1)"
 [ -n "$PACOTE" ] || { echo "Nenhum pacote manager-v*.zip foi encontrado em Downloads."; exit 1; }
 mkdir -p ~/scripts/manager
@@ -68,40 +153,69 @@ unzip -o "$PACOTE" -d ~/scripts/manager
 bash ~/scripts/manager/manager.sh
 ```
 
-O próprio Manager aplica as permissões necessárias. Caso apareça `Permission denied`:
+O comando procura o pacote `manager-v*.zip` mais recente existente em Downloads, cria a pasta de instalação e inicia o Manager.
 
-```bash
-chmod +x ~/scripts/manager/manager.sh
+Se aparecer:
+
+```text
+Nenhum pacote manager-v*.zip foi encontrado em Downloads.
 ```
 
-## Primeira configuração
+verifique se:
 
-O assistente inicial:
+- o arquivo foi realmente salvo em **Downloads**;
+- o nome começa com `manager-v` e termina em `.zip`;
+- você não baixou apenas o `Source code` do GitHub;
+- `termux-setup-storage` foi executado e o acesso aos arquivos foi permitido.
 
-1. verifica o Termux e o armazenamento;
-2. instala as ferramentas básicas necessárias;
-3. cria o atalho global `manager`;
-4. mostra uma tela isolada com a versão instalada;
-5. informa quando o shell precisa ser reiniciado;
-6. oferece reiniciar agora, continuar para o menu ou sair sem reiniciar.
+### 5. Primeira configuração
 
-## Como abrir
+Na primeira execução, o assistente do Termux Manager:
+
+1. verifica o ambiente do Termux e o acesso ao armazenamento;
+2. prepara as pastas usadas pelo Manager;
+3. instala as ferramentas básicas necessárias;
+4. configura o atalho global `manager`;
+5. informa a versão instalada;
+6. avisa quando o shell precisa ser reiniciado;
+7. permite reiniciar, continuar para o menu principal ou sair.
+
+Essa etapa precisa de conexão com a internet caso existam pacotes que ainda precisem ser instalados ou atualizados.
+
+### 6. Abra o Manager novamente
+
+Depois da configuração inicial, o comando normal é:
 
 ```bash
 manager
 ```
 
-Alternativas:
+Alternativa direta:
 
 ```bash
 bash ~/scripts/manager/manager.sh
 ```
 
+Também existe o atalho opcional:
+
 ```bash
 mm
 ```
 
-O atalho `mm` é opcional e pode ser configurado em **Configurações → Atalhos do Manager**.
+O `mm` pode ser ativado em **Configurações → Atalhos do Manager**.
+
+### Problema: `Permission denied`
+
+Normalmente o próprio Manager aplica as permissões necessárias. Se ainda aparecer `Permission denied`, execute:
+
+```bash
+chmod +x ~/scripts/manager/manager.sh
+bash ~/scripts/manager/manager.sh
+```
+
+### Observação sobre trocar a origem do Termux
+
+GitHub/F-Droid e Google Play usam distribuições diferentes. Se você decidir trocar a origem do Termux depois de já possuir uma instalação configurada, faça backup dos seus arquivos antes e consulte a documentação oficial do Termux. Não tente simplesmente instalar uma variante por cima de outra quando as assinaturas forem incompatíveis.
 
 ## Menu principal
 
@@ -233,11 +347,11 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.64
-Tag: v1.0.64
-Release: Manager 1.0.64
-Pacote: manager-v1.0.64.zip
-Checksum: manager-v1.0.64.sha256
+Versão: 1.0.68
+Tag: v1.0.68
+Release: Manager 1.0.68
+Pacote: manager-v1.0.68.zip
+Checksum: manager-v1.0.68.sha256
 ```
 
 ### Transição da versão 1.0.44

@@ -8,7 +8,7 @@ O projeto usa Versionamento Semântico: `MAJOR.MINOR.PATCH`.
 - **MINOR:** nova funcionalidade compatível;
 - **PATCH:** correção, documentação ou melhoria visual sem quebra de compatibilidade.
 
-Versão atual de referência: `1.0.64`.
+Versão atual de referência: `1.0.68`.
 
 ## Padrão da release
 
@@ -25,11 +25,11 @@ Checksum: manager-vX.Y.Z.sha256
 Para a versão atual:
 
 ```text
-Versão interna: 1.0.64
-Tag: v1.0.64
-Título: Manager 1.0.64
-Pacote: manager-v1.0.64.zip
-Checksum: manager-v1.0.64.sha256
+Versão interna: 1.0.68
+Tag: v1.0.68
+Título: Manager 1.0.68
+Pacote: manager-v1.0.68.zip
+Checksum: manager-v1.0.68.sha256
 ```
 
 Nunca reutilizar uma tag ou substituir silenciosamente o arquivo de uma versão publicada. Qualquer correção exige novo número.

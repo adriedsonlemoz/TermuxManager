@@ -2,20 +2,32 @@
 # Ajuda integrada do Termux Manager.
 
 ajuda_primeira_instalacao() {
-    cabecalho_tela "🚀 Primeira instalação" "Instalação limpa a partir de Downloads"
-    caixa_simples "1. Preparar o Termux" \
+    cabecalho_tela "🚀 Primeira instalação" "Termux, download, armazenamento e primeira abertura"
+    caixa_simples "1. Instalar o Termux" \
+        "GitHub: https://github.com/termux/termux-app/releases" \
+        "Google Play: https://play.google.com/store/apps/details?id=com.termux" \
+        "A edição Google Play exige Android 11+ e pode ter diferenças da edição GitHub/F-Droid."
+    echo
+    caixa_simples "2. Baixar o Manager" \
+        "Releases: https://github.com/adriedsonlemoz/TermuxManager/releases" \
+        "Baixe manager-vX.Y.Z.zip e deixe em Downloads." \
+        "Não use Source code (zip) nem Code > Download ZIP."
+    echo
+    caixa_simples "3. Preparar o Termux" \
+        "pkg update -y" \
         "termux-setup-storage" \
         "pkg install unzip -y" \
         "Aceite a permissão de armazenamento quando o Android solicitar."
     echo
-    caixa_simples "2. Extrair o pacote" \
+    caixa_simples "4. Extrair o pacote" \
         'PACOTE="$(ls -t ~/storage/downloads/manager-v*.zip 2>/dev/null | head -n 1)"' \
+        '[ -n "$PACOTE" ] || { echo "Pacote não encontrado em Downloads."; return; }' \
         'mkdir -p ~/scripts/manager' \
         'unzip -o "$PACOTE" -d ~/scripts/manager'
     echo
-    caixa_simples "3. Primeira abertura" \
+    caixa_simples "5. Primeira abertura" \
         "bash ~/scripts/manager/manager.sh" \
-        "O próprio Manager aplica as permissões necessárias."
+        "O assistente prepara o ambiente e instala/configura o atalho manager."
     echo
     caixa_simples "Após configurar" \
         "Abra normalmente com: manager" \
