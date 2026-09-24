@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.85  
+**Versão atual:** 1.0.88  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -182,7 +182,15 @@ A interface de Linux prioriza uso leigo: distribuições instaladas são detecta
 
 A área **Meus Linux** centraliza as distribuições já instaladas. A lista mostra nome do sistema, estado da sessão, saúde, arquitetura, tamanho atual e desktops detectados. Ao selecionar uma distro, o Manager abre um painel próprio com **Iniciar terminal**, **Desktop/X11**, **Atualizar sistema**, **Criar backup**, **Informações completas**, **Encerrar sessões**, **Reparar/reinstalar** e **Remover**.
 
-O tamanho do rootfs é medido localmente e fica em cache curto para evitar percorrer milhares de arquivos a cada abertura do menu. A saúde também é testada com `/bin/sh`. Quando o teste falha, o Manager mostra uma causa curta na lista — por exemplo **Arquitetura**, **QEMU**, **Loader ausente** ou **Timeout** — e oferece um diagnóstico completo com código, arquitetura registrada, arquitetura real do shell, loader e último erro.
+O tamanho do rootfs é medido localmente e fica em cache curto para evitar percorrer milhares de arquivos a cada abertura do menu. A saúde também é testada com `/bin/sh`. Quando o teste falha, o Manager mostra uma causa curta na lista — por exemplo **Arquitetura**, **QEMU**, **Loader ausente**, **Ambiente PRoot** ou **Timeout** — e oferece um diagnóstico completo.
+
+O diagnóstico diferencia **geração da CPU** (por exemplo ARMv8), **ABI do Android** (`armeabi-v7a`/`arm64-v8a`), **arquitetura usada pelo Termux** (`arm`/`aarch64`) e **32/64 bits do processo**. Assim, um aparelho pode possuir CPU ARMv8 e ainda executar um Termux 32-bit; nesse caso as distros nativas continuam seguindo a arquitetura real do Termux.
+
+Mensagens conhecidas do PRoot são interpretadas em português na tela, com uma orientação curta do que verificar. Na exportação para Downloads, o relatório mantém primeiro a interpretação em português e preserva o erro técnico original em uma seção separada, para facilitar suporte e pesquisa.
+
+A opção **Ambiente PRoot** diagnostica separadamente o motor usado pelas distros: verifica os comandos `proot`/`proot-distro`, versões instaladas, a pasta temporária interna do Termux e executa um teste com o shell nativo do próprio Termux. O reparo reinstala apenas esses componentes, invalida diagnósticos antigos e **não apaga as distribuições instaladas**.
+
+A opção **Restaurar backup** procura arquivos compatíveis na pasta Downloads, mostra distro, tamanho e data antes da restauração e usa o `proot-distro restore`. Se a distro do backup já existir, o Manager oferece criar primeiro um novo backup de segurança da instalação atual. O arquivo original em Downloads é preservado.
 
 O cache de saúde guarda também o motivo da falha. Caches antigos que só sabiam “Problema” são reavaliados automaticamente para produzir um diagnóstico explicativo. Na tentativa de iniciar uma distro com falha, o usuário pode **Ver diagnóstico**, **Testar novamente** ou **Reparar/reinstalar**.
 
@@ -202,7 +210,9 @@ O submenu permite:
 - iniciar uma distribuição em modo terminal ou desktop;
 - atualizar os pacotes do sistema usando APT, Pacman, APK, DNF ou Zypper;
 - criar backup completo em Downloads pelo `proot-distro backup`;
+- restaurar backups encontrados em Downloads pelo `proot-distro restore`, com confirmação antes de substituir uma distro existente;
 - encerrar sessões ativas pelo `proot-distro kill`;
+- diagnosticar e reparar o ambiente PRoot sem remover as distros instaladas;
 - resetar/reinstalar ou remover uma distribuição com confirmações reforçadas;
 - instalar `x11-repo` e `termux-x11-nightly`;
 - baixar o APK oficial nightly do Termux:X11 para Downloads e abrir o instalador do Android;
@@ -338,10 +348,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.85
-Tag: v1.0.85
-Release: Manager 1.0.85
-Pacote único: TermuxManager-v1.0.85.zip
+Versão: 1.0.88
+Tag: v1.0.88
+Release: Manager 1.0.88
+Pacote único: TermuxManager-v1.0.88.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

@@ -1,5 +1,50 @@
 # Changelog
 
+## [1.0.88] - 2026-09-24
+
+### Adicionado
+- Nova opção **Restaurar backup** em **Linux no celular**, procurando automaticamente backups compatíveis na pasta Downloads.
+- A lista de backups mostra a distribuição detectada, tamanho e data do arquivo antes da restauração.
+- Quando o backup pertence a uma distro já instalada, o Manager oferece criar primeiro um **backup de segurança** da instalação atual.
+- Após a restauração, o Manager invalida os caches da distro e executa uma nova verificação de saúde quando consegue identificar o alias restaurado.
+
+### Proteção
+- A restauração usa o comando oficial `proot-distro restore` e exige confirmação antes de substituir dados existentes.
+- O arquivo original de backup em Downloads nunca é apagado pelo fluxo de restauração.
+- Arquivos TAR não reconhecidos como backup de uma distribuição são ignorados na lista para reduzir seleções acidentais.
+
+## [1.0.87] - 2026-09-24
+
+### Adicionado
+- Nova área **Linux no celular → Ambiente PRoot** com diagnóstico do motor PRoot separado das distribuições.
+- Verificação de presença e versão dos pacotes `proot` e `proot-distro`, teste da pasta temporária do Termux e teste básico do PRoot.
+- Ação **Reparar ambiente PRoot** que prepara a pasta temporária, reinstala somente `proot`/`proot-distro`, limpa apenas caches de saúde do Manager e testa o ambiente novamente.
+
+### Segurança
+- O reparo do PRoot preserva as distribuições instaladas e informa a quantidade de containers antes e depois da operação.
+- Arquivos temporários externos e containers não são removidos pelo reparo.
+
+### Corrigido
+- O teste básico do PRoot deixou de usar `/system/bin/sh` e passou a usar o shell nativo do próprio Termux. Isso evita falso diagnóstico em aparelhos ARM64 cujo Termux está executando em userspace ARM 32-bit.
+
+## [1.0.86] - 2026-09-24
+
+### Melhorado
+- O diagnóstico Linux agora **interpreta em português** mensagens conhecidas do PRoot, incluindo `Exec format error`, loader ausente, QEMU, permissões, caminhos ausentes e falhas temporárias.
+- A tela deixa de exibir o bloco técnico em inglês como mensagem principal; mostra uma explicação curta em português e uma seção **O que fazer** com orientação relacionada ao código detectado.
+- A identificação de arquitetura agora separa **geração da CPU**, **ABI do Android**, **arquitetura do Termux**, **bits do processo** e **arquitetura da distro/shell**, evitando confundir ARMv8 com execução ARM 32-bit.
+- Quando o Termux está em `arm`/32 bits sobre um aparelho com sinais de ARMv8/arm64, o Manager explica que a distro nativa deve continuar seguindo a ABI do Termux.
+- O diagnóstico executa um teste básico do próprio PRoot para ajudar a distinguir falha de uma distro de uma falha mais ampla do ambiente PRoot.
+
+### Adicionado
+- Novo código `PROOT_ENV_FAILURE` para casos em que a arquitetura coincide, mas o PRoot ainda falha ao executar `/bin/sh` ou ao preparar seus arquivos temporários.
+- O log exportado agora traz primeiro **resumo, interpretação e orientação em português**, seguido do **erro original do PRoot preservado** para análise técnica.
+- O log exportado registra também ABIs Android 32/64-bit, kernel, geração ARM detectada, bitness do Termux e resultado do teste básico do PRoot.
+
+### Corrigido
+- Caches antigos classificados genericamente como `PROOT_FAILURE`/`EXEC_FORMAT` são reavaliados para aproveitar o diagnóstico mais preciso desta versão.
+- O log recente exportado remove sequências ANSI de terminal, deixando o arquivo mais limpo e legível.
+
 ## [1.0.85] - 2026-09-24
 
 ### Melhorado

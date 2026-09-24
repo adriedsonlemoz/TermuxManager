@@ -126,11 +126,14 @@ linux_verificar_compatibilidade_imagem() {
 
 linux_mostrar_compatibilidade_imagem() {
     local ref="$1" nome_amigavel="${2:-$1}"
+    linux_coletar_contexto_arquitetura
     cabecalho_tela "🔎 Compatibilidade da distribuição" "$nome_amigavel"
-    caixa_simples "Aparelho" \
-        "Arquitetura Termux: $(linux_arquitetura)" \
-        "Arquitetura OCI: $(linux_docker_arquitetura_dispositivo "$(linux_arquitetura)" 2>/dev/null || echo não mapeada)" \
-        "Imagem: $ref"
+    caixa_simples_wrap "Aparelho" \
+        "CPU: ${LINUX_ARCH_CPU_GEN:-?} • Termux: ${LINUX_ARCH_TERMUX:-?} (${LINUX_ARCH_BITS:-?} bits)" \
+        "Android ABI: ${LINUX_ARCH_ANDROID_ABI:-não informada}" \
+        "OCI usada: $(linux_docker_arquitetura_dispositivo "$LINUX_ARCH_TERMUX" 2>/dev/null || echo não mapeada)" \
+        "Imagem: $ref" \
+        "$LINUX_ARCH_INTERPRETATION"
     printf '\n⏳ Consultando arquiteturas publicadas antes do download...\n'
     ui_buffer_flush 2>/dev/null || true
     linux_verificar_compatibilidade_imagem "$ref"
@@ -193,6 +196,93 @@ linux_arquitetura() {
     fi
 }
 
+linux_bits_processo() {
+    local bits=""
+    if command -v getconf >/dev/null 2>&1; then
+        bits="$(getconf LONG_BIT 2>/dev/null || true)"
+    fi
+    if [[ "$bits" =~ ^(32|64)$ ]]; then
+        printf '%s
+' "$bits"
+        return 0
+    fi
+    case "$(linux_arquitetura)" in
+        aarch64|arm64|x86_64|amd64|riscv64) printf '64
+' ;;
+        arm|armhf|armeabi-v7a|i386|i486|i586|i686|x86) printf '32
+' ;;
+        *) printf 'desconhecido
+' ;;
+    esac
+}
+
+linux_android_prop() {
+    local chave="${1:-}"
+    [ -n "$chave" ] || return 1
+    command -v getprop >/dev/null 2>&1 || return 1
+    getprop "$chave" 2>/dev/null | head -n1
+}
+
+linux_cpu_arm_geracao() {
+    local geracao linha
+    geracao="$(awk -F: '/^[[:space:]]*CPU architecture[[:space:]]*:/ {gsub(/[[:space:]]/,"",$2); print $2; exit}' /proc/cpuinfo 2>/dev/null || true)"
+    if [[ "$geracao" =~ ^[0-9]+$ ]]; then
+        printf 'ARMv%s
+' "$geracao"
+        return 0
+    fi
+    linha="$(grep -m1 -E 'ARMv[0-9]+|AArch64' /proc/cpuinfo 2>/dev/null || true)"
+    if [[ "$linha" =~ ARMv([0-9]+) ]]; then
+        printf 'ARMv%s
+' "${BASH_REMATCH[1]}"
+        return 0
+    fi
+    case "$(uname -m 2>/dev/null || true)" in
+        aarch64|arm64) printf 'ARMv8+
+' ;;
+        armv8*) printf 'ARMv8
+' ;;
+        armv7*) printf 'ARMv7
+' ;;
+        *) printf 'não identificada
+' ;;
+    esac
+}
+
+linux_coletar_contexto_arquitetura() {
+    LINUX_ARCH_TERMUX="$(linux_arquitetura)"
+    LINUX_ARCH_BITS="$(linux_bits_processo)"
+    LINUX_ARCH_KERNEL="$(uname -m 2>/dev/null || printf 'desconhecido')"
+    LINUX_ARCH_ANDROID_ABI="$(linux_android_prop ro.product.cpu.abi 2>/dev/null || true)"
+    LINUX_ARCH_ANDROID_ABILIST="$(linux_android_prop ro.product.cpu.abilist 2>/dev/null || true)"
+    LINUX_ARCH_ANDROID_ABILIST32="$(linux_android_prop ro.product.cpu.abilist32 2>/dev/null || true)"
+    LINUX_ARCH_ANDROID_ABILIST64="$(linux_android_prop ro.product.cpu.abilist64 2>/dev/null || true)"
+    LINUX_ARCH_CPU_GEN="$(linux_cpu_arm_geracao)"
+    LINUX_ARCH_INTERPRETATION=""
+
+    case "$LINUX_ARCH_TERMUX" in
+        arm|armhf|armeabi-v7a)
+            if [[ "$LINUX_ARCH_ANDROID_ABILIST64" == *arm64-v8a* ]] || [[ "$LINUX_ARCH_ANDROID_ABILIST" == *arm64-v8a* ]] ||                [[ "$LINUX_ARCH_KERNEL" == aarch64* ]] || [[ "$LINUX_ARCH_CPU_GEN" =~ ARMv([89]|[1-9][0-9]) ]]; then
+                LINUX_ARCH_INTERPRETATION="CPU/Android com recursos ARMv8+, mas o Termux atual executa em 32 bits (arm)."
+            else
+                LINUX_ARCH_INTERPRETATION="O Termux atual executa ARM em 32 bits. A geração física da CPU não muda a ABI usada pelas distros."
+            fi
+            ;;
+        aarch64|arm64)
+            LINUX_ARCH_INTERPRETATION="Termux e distros nativas usam ARM de 64 bits (AArch64/arm64)."
+            ;;
+        x86_64|amd64)
+            LINUX_ARCH_INTERPRETATION="Termux executa em x86_64 de 64 bits."
+            ;;
+        i386|i486|i586|i686|x86)
+            LINUX_ARCH_INTERPRETATION="Termux executa em x86 de 32 bits."
+            ;;
+        *)
+            LINUX_ARCH_INTERPRETATION="Arquitetura do Termux: $LINUX_ARCH_TERMUX; processo: ${LINUX_ARCH_BITS} bits."
+            ;;
+    esac
+}
+
 linux_android_versao() {
     if command -v getprop >/dev/null 2>&1; then
         getprop ro.build.version.release 2>/dev/null | head -1
@@ -235,19 +325,23 @@ linux_avaliar_aparelho() {
 linux_mostrar_perfil() {
     detectar_variante_termux 2>/dev/null || true
     linux_avaliar_aparelho
+    linux_coletar_contexto_arquitetura
     cabecalho_tela "📱 Capacidade para Linux" "Estimativa local antes da instalação"
-    caixa_simples "Hardware detectado" \
+    caixa_simples_wrap "Hardware detectado" \
         "RAM total: $(linux_formatar_gb_kb "$LINUX_RAM_KB")" \
-        "RAM disponível agora: $(linux_formatar_gb_kb "$(linux_mem_disponivel_kb)")" \
-        "CPU: ${LINUX_CPU_CORES} núcleo(s)" \
-        "Arquitetura: $(linux_arquitetura)" \
+        "RAM disponível: $(linux_formatar_gb_kb "$(linux_mem_disponivel_kb)")" \
+        "CPU: ${LINUX_CPU_CORES} núcleo(s) • ${LINUX_ARCH_CPU_GEN}" \
+        "Termux: ${LINUX_ARCH_TERMUX} • ${LINUX_ARCH_BITS} bits" \
+        "Android ABI: ${LINUX_ARCH_ANDROID_ABI:-não informada}" \
+        "Kernel: ${LINUX_ARCH_KERNEL}" \
         "Espaço livre: $(linux_formatar_gb_kb "$LINUX_FREE_KB")" \
-        "Android: $(linux_android_versao)" \
-        "Termux: $(termux_origem_resumida)"
-    caixa_simples "${LINUX_PROFILE_ICON} Perfil estimado: ${LINUX_PROFILE}" \
+        "Android: $(linux_android_versao)"
+    caixa_simples_wrap "Arquitetura interpretada" \
+        "$LINUX_ARCH_INTERPRETATION" \
+        "As distros nativas seguem a arquitetura do Termux, não apenas a geração da CPU."
+    caixa_simples_wrap "${LINUX_PROFILE_ICON} Perfil: ${LINUX_PROFILE}" \
         "$LINUX_PROFILE_MSG" \
-        "$LINUX_PROFILE_RECOMMEND" \
-        "Esta avaliação é orientativa; não substitui um benchmark do aparelho."
+        "$LINUX_PROFILE_RECOMMEND"
     pause
 }
 
@@ -542,6 +636,252 @@ linux_preparar_diagnostico_local() {
     return 0
 }
 
+linux_traduzir_erro_proot() {
+    local erro="${1:-}" linha saida=""
+    [ -n "$erro" ] || { printf 'Nenhum erro técnico registrado.
+'; return 0; }
+
+    [[ "$erro" == *"Exec format error"* ]] && saida+="• O PRoot recusou o formato do executável inicial.\n"
+    [[ "$erro" == *"script but its interpreter"* ]] && saida+="• O interpretador necessário ao script não foi encontrado.\n"
+    [[ "$erro" == *"ELF but its interpreter"* ]] && saida+="• O loader/interpretador ELF necessário ao binário pode estar ausente.\n"
+    [[ "$erro" == *"foreign binary but qemu was not specified"* ]] && saida+="• O PRoot considera possível uma arquitetura estrangeira sem QEMU configurado.\n"
+    [[ "$erro" == *"qemu does not work correctly"* ]] && saida+="• Se QEMU estiver sendo usado, ele pode não estar funcionando corretamente.\n"
+    [[ "$erro" == *"loader was not found"* ]] && saida+="• O loader do sistema pode estar ausente ou não funcionar dentro do rootfs.\n"
+    [[ "$erro" == *"can't chmod"* && "$erro" == *"/tmp/proot-"* ]] && saida+="• O PRoot falhou ao ajustar um arquivo temporário em /tmp.\n"
+    [[ "$erro" == *"can't sanitize binding"* && "$erro" == *"/proc/self/fd/"* ]] && saida+="• Há um aviso de redirecionamento de entrada/saída; normalmente ele não é a causa principal.\n"
+    [[ "$erro" == *"Permission denied"* ]] && saida+="• Uma permissão necessária foi recusada.\n"
+    [[ "$erro" == *"No such file or directory"* ]] && saida+="• Um arquivo ou caminho necessário não foi encontrado.\n"
+
+    if [ -z "$saida" ]; then
+        saida="• O PRoot retornou uma falha que ainda não possui tradução específica no Manager.\n"
+    fi
+    printf '%b' "$saida"
+}
+
+linux_orientacao_diagnostico() {
+    local codigo="${1:-${LINUX_DIAG_CODE:-UNKNOWN}}"
+    case "$codigo" in
+        PROOT_ENV_FAILURE)
+            printf '%s
+' "Atualize proot/proot-distro e teste novamente. Se várias distros falham igual, o problema tende a estar no ambiente PRoot, não em cada Linux."
+            ;;
+        ARCH_MISMATCH|EXEC_FORMAT)
+            printf '%s
+' "Confirme a ABI do Termux e reinstale a distro usando essa arquitetura. Não escolha ARM64 apenas porque a CPU é ARMv8."
+            ;;
+        QEMU_REQUIRED)
+            printf '%s
+' "Prefira uma imagem nativa da arquitetura do Termux. Emulação exige QEMU configurado corretamente."
+            ;;
+        LOADER_MISSING|SHELL_MISSING|SHELL_TARGET_MISSING|ROOTFS_MISSING)
+            printf '%s
+' "O rootfs parece incompleto. Use Reparar/reinstalar e teste a saúde novamente."
+            ;;
+        PERMISSION)
+            printf '%s
+' "Revise permissões e armazenamento do Termux, depois execute o teste novamente."
+            ;;
+        TIMEOUT)
+            printf '%s
+' "Feche tarefas pesadas, aguarde alguns segundos e repita o teste."
+            ;;
+        *)
+            printf '%s
+' "Use Testar novamente e exporte o log se o erro persistir."
+            ;;
+    esac
+}
+
+linux_testar_proot_host() {
+    local out rc=0 host_shell
+    LINUX_PROOT_HOST_ERROR=""
+    command -v proot >/dev/null 2>&1 || { LINUX_PROOT_HOST_ERROR="Comando proot não encontrado."; return 1; }
+    # Usa o shell nativo do próprio Termux. /system/bin/sh pode ter ABI diferente
+    # em aparelhos cujo hardware é ARM64, mas o Termux está rodando em 32 bits.
+    # Nesse caso, testar /system/bin/sh geraria um falso diagnóstico do PRoot.
+    host_shell="${PREFIX:-}/bin/sh"
+    [ -x "$host_shell" ] || host_shell="$(command -v sh 2>/dev/null || true)"
+    [ -n "$host_shell" ] || { LINUX_PROOT_HOST_ERROR="Shell do Termux não encontrado."; return 1; }
+    if command -v timeout >/dev/null 2>&1; then
+        out="$(timeout 8 proot "$host_shell" -c 'printf __TM_PROOT_HOST_OK__' 2>&1)" || rc=$?
+    else
+        out="$(proot "$host_shell" -c 'printf __TM_PROOT_HOST_OK__' 2>&1)" || rc=$?
+    fi
+    if [ "$rc" -eq 0 ] && [[ "$out" == *"__TM_PROOT_HOST_OK__"* ]]; then
+        return 0
+    fi
+    LINUX_PROOT_HOST_ERROR="$(printf '%s' "$out" | tr '\r\n' '  ' | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//' | cut -c1-600)"
+    return 1
+}
+
+
+linux_pacote_versao() {
+    local pacote="${1:-}"
+    [ -n "$pacote" ] || return 1
+    if command -v dpkg-query >/dev/null 2>&1; then
+        dpkg-query -W -f='${Version}' "$pacote" 2>/dev/null || printf 'não instalado'
+    else
+        printf 'indisponível'
+    fi
+}
+
+linux_proot_tmp_dir() {
+    if [ -n "${PREFIX:-}" ]; then
+        printf '%s/tmp\n' "$PREFIX"
+    elif [ -n "${TMPDIR:-}" ]; then
+        printf '%s\n' "$TMPDIR"
+    else
+        printf '/tmp\n'
+    fi
+}
+
+linux_testar_tmp_proot() {
+    local dir arquivo
+    LINUX_PROOT_TMP_ERROR=""
+    dir="$(linux_proot_tmp_dir)"
+    mkdir -p "$dir" 2>/dev/null || {
+        LINUX_PROOT_TMP_ERROR="Não foi possível criar $dir."
+        return 1
+    }
+    [ -w "$dir" ] || {
+        LINUX_PROOT_TMP_ERROR="$dir não permite gravação."
+        return 1
+    }
+    arquivo="$(mktemp "$dir/manager-proot-test.XXXXXX" 2>/dev/null || true)"
+    [ -n "$arquivo" ] && [ -f "$arquivo" ] || {
+        LINUX_PROOT_TMP_ERROR="Não foi possível criar arquivo temporário em $dir."
+        return 1
+    }
+    printf '#!/data/data/com.termux/files/usr/bin/sh\nexit 0\n' > "$arquivo" 2>/dev/null || {
+        rm -f "$arquivo" 2>/dev/null || true
+        LINUX_PROOT_TMP_ERROR="Falha ao gravar arquivo temporário."
+        return 1
+    }
+    chmod 700 "$arquivo" 2>/dev/null || {
+        rm -f "$arquivo" 2>/dev/null || true
+        LINUX_PROOT_TMP_ERROR="Falha ao aplicar chmod no arquivo temporário."
+        return 1
+    }
+    rm -f "$arquivo" 2>/dev/null || true
+    return 0
+}
+
+linux_diagnosticar_ambiente_proot() {
+    local host_ok="falhou" tmp_ok="falhou" cmd_proot="ausente" cmd_pd="ausente"
+    LINUX_PROOT_ENV_PROOT_VERSION="$(linux_pacote_versao proot)"
+    LINUX_PROOT_ENV_DISTRO_VERSION="$(linux_pacote_versao proot-distro)"
+    LINUX_PROOT_ENV_TMP="$(linux_proot_tmp_dir)"
+    LINUX_PROOT_ENV_HOST_ERROR=""
+    LINUX_PROOT_ENV_TMP_ERROR=""
+    command -v proot >/dev/null 2>&1 && cmd_proot="OK"
+    command -v proot-distro >/dev/null 2>&1 && cmd_pd="OK"
+    if linux_testar_tmp_proot; then
+        tmp_ok="OK"
+    else
+        LINUX_PROOT_ENV_TMP_ERROR="${LINUX_PROOT_TMP_ERROR:-falha desconhecida}"
+    fi
+    if linux_testar_proot_host; then
+        host_ok="OK"
+    else
+        LINUX_PROOT_ENV_HOST_ERROR="${LINUX_PROOT_HOST_ERROR:-falha desconhecida}"
+    fi
+    LINUX_PROOT_ENV_COMMANDS="$cmd_proot / $cmd_pd"
+    LINUX_PROOT_ENV_TMP_STATUS="$tmp_ok"
+    LINUX_PROOT_ENV_HOST_STATUS="$host_ok"
+    if [ "$cmd_proot" = "OK" ] && [ "$cmd_pd" = "OK" ] && [ "$tmp_ok" = "OK" ] && [ "$host_ok" = "OK" ]; then
+        LINUX_PROOT_ENV_STATUS="OK"
+        return 0
+    fi
+    LINUX_PROOT_ENV_STATUS="PROBLEMA"
+    return 1
+}
+
+linux_mostrar_diagnostico_proot() {
+    linux_diagnosticar_ambiente_proot || true
+    linux_coletar_instaladas >/dev/null 2>&1 || true
+    cabecalho_tela "🩺 Ambiente PRoot" "Diagnóstico do motor Linux"
+    caixa_simples_wrap "Componentes"         "Comandos proot / proot-distro: ${LINUX_PROOT_ENV_COMMANDS:-?}"         "proot: ${LINUX_PROOT_ENV_PROOT_VERSION:-?}"         "proot-distro: ${LINUX_PROOT_ENV_DISTRO_VERSION:-?}"         "Distros preservadas: ${#LINUX_INSTALLED_DISTROS[@]}"
+    caixa_simples_wrap "Testes"         "Temporários: ${LINUX_PROOT_ENV_TMP_STATUS:-?} • $(caminho_curto "${LINUX_PROOT_ENV_TMP:-$(linux_proot_tmp_dir)}")"         "PRoot básico: ${LINUX_PROOT_ENV_HOST_STATUS:-?}"
+    if [ -n "${LINUX_PROOT_ENV_TMP_ERROR:-}" ] || [ -n "${LINUX_PROOT_ENV_HOST_ERROR:-}" ]; then
+        caixa_simples_wrap "Problema encontrado"             "${LINUX_PROOT_ENV_TMP_ERROR:-}"             "${LINUX_PROOT_ENV_HOST_ERROR:-}"
+    else
+        caixa_simples "Resultado" "✅ Ambiente PRoot básico funcionando."
+    fi
+    rodape_atalhos "[0] Voltar  •  [1] Reparar ambiente  •  [2] Testar novamente"
+    ui_buffer_flush
+}
+
+linux_invalidar_todos_cache_saude() {
+    rm -f "$LINUX_STATE_DIR"/info-cache/*.health 2>/dev/null || true
+}
+
+linux_reparar_ambiente_proot() {
+    local tmpdir antes depois rc=0
+    linux_coletar_instaladas >/dev/null 2>&1 || true
+    antes=${#LINUX_INSTALLED_DISTROS[@]}
+    cabecalho_tela "🛠️ Reparar PRoot" "Sem apagar distribuições"
+    caixa_simples_wrap "O que será feito"         "Verificar a pasta temporária do Termux."         "Reinstalar somente proot e proot-distro."         "Limpar o cache de saúde do Manager e testar novamente."         "As $antes distro(s) instalada(s) não serão removidas."
+    confirmar_acao "Continuar com o reparo do ambiente PRoot?" "s" || return 0
+
+    tmpdir="$(linux_proot_tmp_dir)"
+    mkdir -p "$tmpdir" 2>>"$LINUX_LOG" || rc=1
+    chmod u+rwx "$tmpdir" 2>>"$LINUX_LOG" || rc=1
+    # Remove apenas temporários criados pelos testes do próprio Manager.
+    rm -f "$tmpdir"/manager-proot-test.* "$tmpdir"/tm-linux-health-* 2>/dev/null || true
+
+    if [ "$rc" -ne 0 ]; then
+        cabecalho_tela "🛠️ Reparar PRoot" "Falha antes da reinstalação"
+        caixa_simples_wrap "Pasta temporária"             "Não foi possível preparar $(caminho_curto "$tmpdir")."             "O Manager não alterou as distribuições instaladas."
+        pause
+        return 1
+    fi
+
+    if declare -F executar_pkg_monitorado >/dev/null 2>&1; then
+        if ! executar_pkg_monitorado "Reparando ambiente PRoot" 15 92             "Reinstalando componentes..." "proot e proot-distro" --             install -y --reinstall proot proot-distro; then
+            cabecalho_tela "🛠️ Reparar PRoot" "Reinstalação não concluída"
+            caixa_simples_wrap "Falha no pkg"                 "Não foi possível reinstalar proot/proot-distro."                 "As distribuições continuam preservadas."
+            pause
+            return 1
+        fi
+    else
+        if ! pkg install -y --reinstall proot proot-distro >>"$LINUX_LOG" 2>&1; then
+            cabecalho_tela "🛠️ Reparar PRoot" "Reinstalação não concluída"
+            caixa_simples "Falha no pkg" "As distribuições continuam preservadas."
+            pause
+            return 1
+        fi
+    fi
+
+    linux_invalidar_todos_cache_saude
+    linux_coletar_instaladas >/dev/null 2>&1 || true
+    depois=${#LINUX_INSTALLED_DISTROS[@]}
+    linux_diagnosticar_ambiente_proot || true
+    linux_log "reparo do ambiente PRoot concluído: status=${LINUX_PROOT_ENV_STATUS:-?} distros=$antes->$depois"
+    cabecalho_tela "✅ Reparo do PRoot concluído" "Distribuições preservadas: $depois"
+    caixa_simples_wrap "Resultado"         "PRoot básico: ${LINUX_PROOT_ENV_HOST_STATUS:-?}"         "Temporários: ${LINUX_PROOT_ENV_TMP_STATUS:-?}"         "proot: ${LINUX_PROOT_ENV_PROOT_VERSION:-?}"         "proot-distro: ${LINUX_PROOT_ENV_DISTRO_VERSION:-?}"
+    if [ "${LINUX_PROOT_ENV_STATUS:-PROBLEMA}" != "OK" ]; then
+        caixa_simples_wrap "Ainda há problema"             "O reparo não resolveu o teste básico do PRoot."             "Use o diagnóstico e exporte o log antes de reinstalar distros."
+    else
+        caixa_simples_wrap "Próximo teste"             "Abra Meus Linux e use Testar novamente na distro com problema."
+    fi
+    pause
+}
+
+menu_ambiente_proot() {
+    local escolha
+    while true; do
+        linux_mostrar_diagnostico_proot
+        ler_opcao
+        escolha="$RESPOSTA_MENU"
+        case "$escolha" in
+            1) linux_reparar_ambiente_proot ;;
+            2) : ;;
+            0|"") tela_limpar; return 0 ;;
+            *) feedback_curto "Opção inválida." ;;
+        esac
+    done
+}
+
 linux_classificar_falha_saude() {
     local rc="${1:-1}" erro="${2:-}" host="${LINUX_DIAG_HOST_ARCH:-}" guest="${LINUX_DIAG_SHELL_ARCH:-}"
     # Diagnósticos estruturais encontrados antes da execução têm prioridade.
@@ -562,12 +902,18 @@ linux_classificar_falha_saude() {
             LINUX_DIAG_REASON="Emulação necessária"
             LINUX_DIAG_DETAIL="Host: $host; /bin/sh: $guest; execução nativa incompatível."
         else
-            LINUX_DIAG_CODE="EXEC_FORMAT"
-            LINUX_DIAG_REASON="Formato incompatível"
-            if [ -n "$guest" ] && [ "$guest" != "desconhecida" ]; then
-                LINUX_DIAG_DETAIL="Host: ${host:-desconhecido}; /bin/sh: $guest."
+            if [ -n "$guest" ] && [ "$guest" != "desconhecida" ] && [ -n "$host" ] && [ "$guest" = "$host" ]; then
+                LINUX_DIAG_CODE="PROOT_ENV_FAILURE"
+                LINUX_DIAG_REASON="Falha do ambiente PRoot"
+                LINUX_DIAG_DETAIL="A arquitetura da distro coincide com o Termux, mas o PRoot não conseguiu executar /bin/sh."
             else
-                LINUX_DIAG_DETAIL="O Android/PRoot recusou o formato do /bin/sh desta distro."
+                LINUX_DIAG_CODE="EXEC_FORMAT"
+                LINUX_DIAG_REASON="Formato incompatível"
+                if [ -n "$guest" ] && [ "$guest" != "desconhecida" ]; then
+                    LINUX_DIAG_DETAIL="Host: ${host:-desconhecido}; /bin/sh: $guest."
+                else
+                    LINUX_DIAG_DETAIL="O Android/PRoot recusou o formato do /bin/sh desta distro."
+                fi
             fi
         fi
     elif [[ "$erro" == *"qemu was not specified"* ]] && [ -n "$guest" ] && [ -n "$host" ] && [ "$guest" != "$host" ]; then
@@ -582,14 +928,24 @@ linux_classificar_falha_saude() {
         LINUX_DIAG_CODE="LOADER_MISSING"
         LINUX_DIAG_REASON="Loader ausente"
         LINUX_DIAG_DETAIL="O interpretador dinâmico necessário ao binário não foi encontrado."
+    elif [[ "$erro" == *"can't chmod"* && "$erro" == *"/tmp/proot-"* ]]; then
+        LINUX_DIAG_CODE="PROOT_ENV_FAILURE"
+        LINUX_DIAG_REASON="Falha do ambiente PRoot"
+        LINUX_DIAG_DETAIL="O PRoot falhou ao criar ou ajustar arquivos temporários antes de iniciar a distro."
     elif [[ "$erro" == *"No such file or directory"* ]]; then
         LINUX_DIAG_CODE="FILE_MISSING"
         LINUX_DIAG_REASON="Arquivo ausente"
         LINUX_DIAG_DETAIL="Um arquivo necessário para iniciar a distribuição não foi encontrado."
     else
-        LINUX_DIAG_CODE="PROOT_FAILURE"
-        LINUX_DIAG_REASON="Falha no PRoot"
-        LINUX_DIAG_DETAIL="O proot-distro retornou erro durante o teste de inicialização."
+        if ! linux_testar_proot_host; then
+            LINUX_DIAG_CODE="PROOT_ENV_FAILURE"
+            LINUX_DIAG_REASON="Falha do ambiente PRoot"
+            LINUX_DIAG_DETAIL="O teste básico do PRoot também falhou fora da distro; o ambiente do Termux precisa ser verificado."
+        else
+            LINUX_DIAG_CODE="PROOT_FAILURE"
+            LINUX_DIAG_REASON="Falha no PRoot"
+            LINUX_DIAG_DETAIL="O PRoot funciona no Termux, mas o proot-distro falhou ao iniciar esta distribuição."
+        fi
     fi
 }
 
@@ -613,8 +969,9 @@ linux_carregar_cache_saude() {
        [ $((agora - salvo_ts)) -lt 0 ] || [ $((agora - salvo_ts)) -ge "$LINUX_INFO_CACHE_TTL" ]; then
         return 1
     fi
-    # Cache antigo de problema não tinha diagnóstico; refaz uma vez para explicar a causa.
-    if [ "${salvo_status:-}" = "problem" ] && [ -z "${salvo_code:-}" ]; then
+    # Caches antigos ou genéricos são refeitos para aproveitar o diagnóstico
+    # de ambiente PRoot e a interpretação de arquitetura desta versão.
+    if [ "${salvo_status:-}" = "problem" ] && { [ -z "${salvo_code:-}" ] || [ "$salvo_code" = "PROOT_FAILURE" ] || [ "$salvo_code" = "EXEC_FORMAT" ]; }; then
         return 1
     fi
     LINUX_INFO_HEALTH="${salvo_status:-unknown}"
@@ -644,7 +1001,7 @@ linux_testar_saude_distro() {
     else
         saida="$(proot-distro login "$alias" -- /bin/sh -lc 'printf __TM_HEALTH_OK__' 2>"$errfile")" || rc=$?
     fi
-    erro="$(tail -n 8 "$errfile" 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//' | cut -c1-320)"
+    erro="$(tail -n 14 "$errfile" 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//' | cut -c1-1200)"
 
     if [ "$rc" -eq 0 ] && [[ "$saida" == *"__TM_HEALTH_OK__"* ]]; then
         LINUX_INFO_HEALTH="ok"
@@ -673,19 +1030,35 @@ linux_rotulo_curto_saude() {
         SHELL_MISSING|SHELL_TARGET_MISSING) printf 'Shell ausente' ;;
         LOADER_MISSING) printf 'Loader ausente' ;;
         TIMEOUT) printf 'Timeout' ;;
+        PROOT_ENV_FAILURE) printf 'Ambiente PRoot' ;;
         PERMISSION) printf 'Permissão' ;;
         FILE_MISSING) printf 'Arquivo ausente' ;;
         *) printf 'Inicialização' ;;
     esac
 }
 
+linux_limpar_ansi_log() {
+    sed -E $'s/\x1B\[[0-9;?]*[ -\/]*[@-~]//g'
+}
+
 linux_exportar_diagnostico_distro() {
-    local alias="${1:-}" pasta carimbo slug destino shell_exib loader_exib
+    local alias="${1:-}" pasta carimbo slug destino shell_exib loader_exib erro_pt orientacao proot_status
     [ -n "$alias" ] || return 1
     linux_coletar_info_distro "$alias" false
+    linux_coletar_contexto_arquitetura
+    erro_pt="$(linux_traduzir_erro_proot "${LINUX_INFO_HEALTH_ERROR:-}")"
+    orientacao="$(linux_orientacao_diagnostico "${LINUX_DIAG_CODE:-UNKNOWN}")"
+    if linux_testar_proot_host; then
+        proot_status="OK"
+    else
+        proot_status="FALHOU"
+    fi
+
     if ! resolver_downloads_dir >/dev/null 2>&1; then
         cabecalho_tela "📥 Exportar diagnóstico" "$LINUX_INFO_NAME"
-        caixa_simples_wrap "Downloads indisponível"             "Não foi possível acessar a pasta Downloads."             "Execute termux-setup-storage e tente novamente."
+        caixa_simples_wrap "Downloads indisponível" \
+            "Não foi possível acessar a pasta Downloads." \
+            "Execute termux-setup-storage e tente novamente."
         pause
         return 1
     fi
@@ -693,10 +1066,11 @@ linux_exportar_diagnostico_distro() {
     mkdir -p "$pasta" 2>/dev/null || true
     [ -d "$pasta" ] || {
         cabecalho_tela "📥 Exportar diagnóstico" "$LINUX_INFO_NAME"
-        caixa_simples_wrap "Destino indisponível"             "A pasta Downloads não está acessível no momento."
+        caixa_simples_wrap "Destino indisponível" "A pasta Downloads não está acessível."
         pause
         return 1
     }
+
     carimbo="$(date '+%Y%m%d-%H%M%S')"
     if declare -F sanitizar_nome_arquivo >/dev/null 2>&1; then
         slug="$(sanitizar_nome_arquivo "$alias")"
@@ -708,78 +1082,96 @@ linux_exportar_diagnostico_distro() {
     shell_exib="${LINUX_DIAG_SHELL_TARGET:-não localizado}"
     [ -n "${LINUX_DIAG_ROOTFS:-}" ] && shell_exib="${shell_exib#"$LINUX_DIAG_ROOTFS"}"
     loader_exib="${LINUX_DIAG_LOADER:-não identificado}"
+
     {
-        printf 'Manager.sh — Diagnóstico Linux
-'
-        printf 'Gerado em: %s
-' "$(date '+%Y-%m-%d %H:%M:%S')"
-        printf 'Distribuição: %s
-' "$LINUX_INFO_NAME"
-        printf 'Alias: %s
-' "$alias"
-        printf 'Saúde: %s %s
-' "$LINUX_INFO_HEALTH_ICON" "$LINUX_INFO_HEALTH_LABEL"
-        printf 'Código: %s
-' "${LINUX_DIAG_CODE:-UNKNOWN}"
-        printf 'Motivo: %s
-' "${LINUX_DIAG_REASON:-não identificado}"
-        printf 'Detalhe: %s
-' "${LINUX_DIAG_DETAIL:-sem detalhe adicional}"
-        printf '
-[Arquitetura]
-'
-        printf 'Termux: %s
-' "${LINUX_DIAG_HOST_ARCH:-desconhecida}"
-        printf 'Manifesto: %s
-' "${LINUX_DIAG_MANIFEST_ARCH:-não informado}"
-        printf '/bin/sh: %s
-' "${LINUX_DIAG_SHELL_ARCH:-desconhecida}"
-        printf 'QEMU: %s
-' "${LINUX_DIAG_QEMU:-não verificado}"
-        printf '
-[Arquivos]
-'
-        printf 'Shell: %s
-' "$shell_exib"
-        printf 'Loader: %s
-' "$loader_exib"
-        printf 'Loader no rootfs: %s
-' "${LINUX_DIAG_LOADER_STATUS:-não verificado}"
-        printf '
-[Último erro]
-%s
-' "${LINUX_INFO_HEALTH_ERROR:-sem registro}"
-        printf '
-[Log do Linux]
-'
+        printf 'Manager.sh — Diagnóstico Linux\n'
+        printf 'Gerado em: %s\n' "$(date '+%Y-%m-%d %H:%M:%S')"
+        printf 'Distribuição: %s\n' "$LINUX_INFO_NAME"
+        printf 'Alias: %s\n\n' "$alias"
+
+        printf '[Resumo em português]\n'
+        printf 'Saúde: %s %s\n' "$LINUX_INFO_HEALTH_ICON" "$LINUX_INFO_HEALTH_LABEL"
+        printf 'Código: %s\n' "${LINUX_DIAG_CODE:-UNKNOWN}"
+        printf 'Motivo: %s\n' "${LINUX_DIAG_REASON:-não identificado}"
+        printf 'Detalhe: %s\n' "${LINUX_DIAG_DETAIL:-sem detalhe adicional}"
+        printf 'Teste básico do PRoot: %s\n\n' "$proot_status"
+
+        printf '[Interpretação do erro em português]\n%s\n' "$erro_pt"
+        printf '[O que fazer]\n%s\n\n' "$orientacao"
+
+        printf '[Arquitetura interpretada]\n'
+        printf 'CPU: %s\n' "${LINUX_ARCH_CPU_GEN:-não identificada}"
+        printf 'Kernel: %s\n' "${LINUX_ARCH_KERNEL:-desconhecido}"
+        printf 'Android ABI principal: %s\n' "${LINUX_ARCH_ANDROID_ABI:-não informada}"
+        printf 'Android ABIs: %s\n' "${LINUX_ARCH_ANDROID_ABILIST:-não informadas}"
+        printf 'Android ABIs 32-bit: %s\n' "${LINUX_ARCH_ANDROID_ABILIST32:-não informadas}"
+        printf 'Android ABIs 64-bit: %s\n' "${LINUX_ARCH_ANDROID_ABILIST64:-não informadas}"
+        printf 'Termux: %s (%s bits)\n' "${LINUX_ARCH_TERMUX:-desconhecida}" "${LINUX_ARCH_BITS:-?}"
+        printf 'Distro (manifesto): %s\n' "${LINUX_DIAG_MANIFEST_ARCH:-não informado}"
+        printf '/bin/sh: %s\n' "${LINUX_DIAG_SHELL_ARCH:-desconhecida}"
+        printf 'Interpretação: %s\n' "${LINUX_ARCH_INTERPRETATION:-não disponível}"
+        printf 'QEMU: %s\n\n' "${LINUX_DIAG_QEMU:-não verificado}"
+
+        printf '[Arquivos]\n'
+        printf 'Shell: %s\n' "$shell_exib"
+        printf 'Loader: %s\n' "$loader_exib"
+        printf 'Loader no rootfs: %s\n\n' "${LINUX_DIAG_LOADER_STATUS:-não verificado}"
+
+        printf '[Erro original do PRoot — preservado]\n%s\n\n' "${LINUX_INFO_HEALTH_ERROR:-sem registro}"
+        [ -n "${LINUX_PROOT_HOST_ERROR:-}" ] && printf '[Erro do teste básico do PRoot]\n%s\n\n' "$LINUX_PROOT_HOST_ERROR"
+
+        printf '[Log recente do Linux]\n'
         if [ -f "$LINUX_LOG" ]; then
-            tail -n 160 "$LINUX_LOG"
+            tail -n 160 "$LINUX_LOG" | linux_limpar_ansi_log
         else
-            printf 'Arquivo de log não encontrado: %s
-' "$LINUX_LOG"
+            printf 'Arquivo de log não encontrado: %s\n' "$LINUX_LOG"
         fi
     } > "$destino"
+
     cabecalho_tela "📥 Exportar diagnóstico" "$LINUX_INFO_NAME"
-    caixa_simples_wrap "Arquivo salvo"         "O diagnóstico foi copiado para Downloads."         "Arquivo: $(basename "$destino")"         "Local: $(caminho_curto "$destino")"
+    caixa_simples_wrap "Arquivo salvo" \
+        "Diagnóstico em português salvo em Downloads." \
+        "O erro técnico original também foi preservado." \
+        "Arquivo: $(basename "$destino")"
     pause
 }
 
 linux_exibir_diagnostico_distro() {
-    local alias="${1:-}" forcar="${2:-false}" shell_exib loader_exib escolha
+    local alias="${1:-}" forcar="${2:-false}" shell_exib loader_exib escolha erro_pt orientacao proot_status
     [ -n "$alias" ] || return 1
     while true; do
         linux_coletar_info_distro "$alias" "$forcar"
         forcar=false
+        linux_coletar_contexto_arquitetura
         shell_exib="${LINUX_DIAG_SHELL_TARGET:-não localizado}"
         [ -n "${LINUX_DIAG_ROOTFS:-}" ] && shell_exib="${shell_exib#"$LINUX_DIAG_ROOTFS"}"
         loader_exib="${LINUX_DIAG_LOADER:-não identificado}"
+        erro_pt="$(linux_traduzir_erro_proot "${LINUX_INFO_HEALTH_ERROR:-}")"
+        orientacao="$(linux_orientacao_diagnostico "${LINUX_DIAG_CODE:-UNKNOWN}")"
+        if linux_testar_proot_host; then proot_status="OK"; else proot_status="falhou"; fi
+
         cabecalho_tela "🔎 Diagnóstico Linux" "$LINUX_INFO_NAME"
-        caixa_simples_wrap "Resultado"             "Saúde: ${LINUX_INFO_HEALTH_ICON} ${LINUX_INFO_HEALTH_LABEL}"             "Motivo: ${LINUX_DIAG_REASON:-não identificado}"             "Código: ${LINUX_DIAG_CODE:-UNKNOWN}"             "Detalhe: ${LINUX_DIAG_DETAIL:-sem detalhe adicional}"
-        caixa_simples_wrap "Arquitetura"             "Termux / manifesto / shell: ${LINUX_DIAG_HOST_ARCH:-?} / ${LINUX_DIAG_MANIFEST_ARCH:-?} / ${LINUX_DIAG_SHELL_ARCH:-?}"             "QEMU: ${LINUX_DIAG_QEMU:-não verificado}"
-        caixa_simples_wrap "Arquivos"             "Shell: $shell_exib"             "Loader: $loader_exib"             "Loader no rootfs: ${LINUX_DIAG_LOADER_STATUS:-não verificado}"             "Log: $(caminho_curto "$LINUX_LOG")"
-        if [ -n "${LINUX_INFO_HEALTH_ERROR:-}" ]; then
-            caixa_simples_wrap "Último erro"                 "${LINUX_INFO_HEALTH_ERROR}"
-        fi
+        caixa_simples_wrap "Resultado" \
+            "Saúde: ${LINUX_INFO_HEALTH_ICON} ${LINUX_INFO_HEALTH_LABEL}" \
+            "Motivo: ${LINUX_DIAG_REASON:-não identificado}" \
+            "Código: ${LINUX_DIAG_CODE:-UNKNOWN}" \
+            "PRoot base: $proot_status"
+
+        caixa_simples_wrap "Arquitetura" \
+            "CPU: ${LINUX_ARCH_CPU_GEN:-?} • Termux: ${LINUX_ARCH_TERMUX:-?} (${LINUX_ARCH_BITS:-?} bits)" \
+            "Android ABI: ${LINUX_ARCH_ANDROID_ABI:-não informada}" \
+            "Distro / shell: ${LINUX_DIAG_MANIFEST_ARCH:-?} / ${LINUX_DIAG_SHELL_ARCH:-?}" \
+            "${LINUX_ARCH_INTERPRETATION:-}"
+
+        caixa_simples_wrap "Interpretação do erro" "$erro_pt"
+        caixa_simples_wrap "O que fazer" "$orientacao"
+
+        caixa_simples_wrap "Arquivos" \
+            "Shell: $shell_exib" \
+            "Loader: $loader_exib" \
+            "Loader no rootfs: ${LINUX_DIAG_LOADER_STATUS:-não verificado}" \
+            "Log: $(caminho_curto "$LINUX_LOG")"
+
         rodape_atalhos "[0] Voltar  •  [1] Exportar log  •  [2] Testar novamente"
         ui_buffer_flush
         ler_opcao
@@ -1293,34 +1685,180 @@ linux_atualizar_distro() {
 }
 
 linux_backup_distro() {
-    local alias="${1:-}" destino pasta stamp rc=0
+    local alias="${1:-}" modo="${2:-interativo}" destino pasta stamp rc=0
     [ -n "$alias" ] || return 1
+    LINUX_BACKUP_RESULT_FILE=""
     resolver_downloads_dir >/dev/null 2>&1 || true
     pasta="${DOWNLOADS_DIR:-$HOME/storage/downloads}"
     [ -d "$pasta" ] || mkdir -p "$pasta" 2>/dev/null || true
     if [ ! -d "$pasta" ]; then
-        cabecalho_tela "💾 Backup Linux" "$alias"
-        caixa_simples "Downloads indisponível" "Não foi possível acessar uma pasta de Downloads para salvar o backup."
-        pause
+        if [ "$modo" = "interativo" ]; then
+            cabecalho_tela "💾 Backup Linux" "$alias"
+            caixa_simples_wrap "Downloads indisponível" \
+                "Não foi possível acessar Downloads para salvar o backup."
+            pause
+        fi
         return 1
     fi
     stamp="$(date '+%Y%m%d-%H%M%S')"
     destino="$pasta/TermuxManager-${alias}-${stamp}.tar.xz"
     linux_coletar_info_distro "$alias" false
-    cabecalho_tela "💾 Criar backup" "$LINUX_INFO_NAME"
-    caixa_simples "Arquivo de backup" \
-        "Tamanho atual da distro: $LINUX_INFO_SIZE" \
-        "Destino: $(caminho_curto "$destino")" \
-        "O arquivo pode ser grande e a compactação pode demorar."
-    confirmar_acao "Criar backup agora?" "s" || return 0
-    ui_buffer_flush 2>/dev/null || true
+    if [ "$modo" = "interativo" ]; then
+        cabecalho_tela "💾 Criar backup" "$LINUX_INFO_NAME"
+        caixa_simples_wrap "Arquivo de backup" \
+            "Tamanho atual: $LINUX_INFO_SIZE" \
+            "Destino: $(caminho_curto "$destino")" \
+            "A compactação pode demorar em distros grandes."
+        confirmar_acao "Criar backup agora?" "s" || return 0
+        ui_buffer_flush 2>/dev/null || true
+    fi
     proot-distro backup --output "$destino" "$alias" 2>&1 | tee -a "$LINUX_LOG" || rc=${PIPESTATUS[0]}
     if [ "$rc" -eq 0 ] && [ -f "$destino" ]; then
+        LINUX_BACKUP_RESULT_FILE="$destino"
         linux_log "backup criado: $alias -> $destino"
-        ok "Backup criado em Downloads."
-        printf 'Arquivo: %s\n' "$(caminho_curto "$destino")"
+        if [ "$modo" = "interativo" ]; then
+            ok "Backup criado em Downloads."
+            printf 'Arquivo: %s\n' "$(caminho_curto "$destino")"
+            pause
+        fi
+        return 0
+    fi
+    rm -f "$destino" 2>/dev/null || true
+    [ "$modo" = "interativo" ] && { error "Não foi possível criar o backup."; pause; }
+    return 1
+}
+
+linux_backup_alias_arquivo() {
+    local arquivo="${1:-}" base alias
+    [ -f "$arquivo" ] || return 1
+    base="$(basename "$arquivo")"
+    if [[ "$base" =~ ^TermuxManager-(.+)-[0-9]{8}-[0-9]{6}\.tar(\.xz|\.gz|\.bz2|\.lzma|\.zst)?$ ]]; then
+        printf '%s\n' "${BASH_REMATCH[1]}"
+        return 0
+    fi
+    if command -v tar >/dev/null 2>&1; then
+        alias="$(tar -tf "$arquivo" 2>/dev/null | awk -F/ 'NF && $1!="" && $1!="." && ($2=="rootfs" || $2=="manifest.json") {print $1; exit}')"
+        [ -n "$alias" ] && { printf '%s\n' "$alias"; return 0; }
+    fi
+    return 1
+}
+
+linux_coletar_backups_downloads() {
+    local pasta arquivo
+    LINUX_BACKUP_FILES=()
+    resolver_downloads_dir >/dev/null 2>&1 || true
+    pasta="${DOWNLOADS_DIR:-$HOME/storage/downloads}"
+    [ -d "$pasta" ] || return 1
+    shopt -s nullglob
+    for arquivo in \
+        "$pasta"/*.tar "$pasta"/*.tar.gz "$pasta"/*.tgz \
+        "$pasta"/*.tar.bz2 "$pasta"/*.tbz2 \
+        "$pasta"/*.tar.xz "$pasta"/*.txz \
+        "$pasta"/*.tar.lzma "$pasta"/*.tlzma \
+        "$pasta"/*.tar.zst "$pasta"/*.tzst; do
+        if [ -f "$arquivo" ] && linux_backup_alias_arquivo "$arquivo" >/dev/null 2>&1; then
+            LINUX_BACKUP_FILES+=("$arquivo")
+        fi
+    done
+    shopt -u nullglob
+    [ ${#LINUX_BACKUP_FILES[@]} -gt 0 ]
+}
+
+linux_backup_arquivo_resumo() {
+    local arquivo="${1:-}" kb data alias
+    [ -f "$arquivo" ] || return 1
+    kb="$(du -k "$arquivo" 2>/dev/null | awk 'NR==1{print $1+0}')"
+    data="$(date -r "$arquivo" '+%d/%m/%Y %H:%M' 2>/dev/null || printf 'data desconhecida')"
+    alias="$(linux_backup_alias_arquivo "$arquivo" 2>/dev/null || true)"
+    printf '%s • %s • %s\n' "${alias:-distro?}" "$(linux_formatar_tamanho_kb "${kb:-0}")" "$data"
+}
+
+linux_restaurar_backup() {
+    local escolha arquivo alias="" i resumo kb data existente=false rc=0 criar_seg=false
+    linux_garantir_proot_distro || { pause; return 1; }
+    if ! linux_coletar_backups_downloads; then
+        cabecalho_tela "♻️ Restaurar backup" "Backups em Downloads"
+        caixa_simples_wrap "Nenhum backup encontrado" \
+            "Não encontrei arquivos TAR compatíveis na pasta Downloads." \
+            "Crie um backup pelo painel de uma distro ou copie um backup para Downloads."
+        pause
+        return 0
+    fi
+
+    local -a opcoes=()
+    for ((i=0; i<${#LINUX_BACKUP_FILES[@]}; i++)); do
+        arquivo="${LINUX_BACKUP_FILES[$i]}"
+        resumo="$(linux_backup_arquivo_resumo "$arquivo")"
+        opcoes+=("$((i+1))|💾|$(basename "$arquivo")|$resumo")
+    done
+    menu_unificado "♻️ Restaurar backup" "Arquivos encontrados em Downloads" \
+        "[0] Voltar  •  [1–${#LINUX_BACKUP_FILES[@]}] Selecionar" "${opcoes[@]}"
+    ler_opcao
+    escolha="$RESPOSTA_MENU"
+    [ "$escolha" = "0" ] && return 0
+    if ! [[ "$escolha" =~ ^[0-9]+$ ]] || [ "$escolha" -lt 1 ] || [ "$escolha" -gt ${#LINUX_BACKUP_FILES[@]} ]; then
+        feedback_curto "Opção inválida."
+        return 1
+    fi
+
+    arquivo="${LINUX_BACKUP_FILES[$((escolha-1))]}"
+    alias="$(linux_backup_alias_arquivo "$arquivo" 2>/dev/null || true)"
+    kb="$(du -k "$arquivo" 2>/dev/null | awk 'NR==1{print $1+0}')"
+    data="$(date -r "$arquivo" '+%d/%m/%Y %H:%M' 2>/dev/null || printf 'desconhecida')"
+
+    if [ -n "$alias" ]; then
+        linux_coletar_instaladas || true
+        printf '%s\n' "${LINUX_INSTALLED_DISTROS[@]}" | grep -Fxq "$alias" && existente=true || true
+    fi
+
+    cabecalho_tela "♻️ Restaurar backup" "$(basename "$arquivo")"
+    caixa_simples_wrap "Antes de restaurar" \
+        "Distro no backup: ${alias:-não identificada}" \
+        "Tamanho: $(linux_formatar_tamanho_kb "${kb:-0}")" \
+        "Data: $data" \
+        "$([ "$existente" = true ] && printf 'Já instalada: SIM — os dados atuais serão substituídos.' || printf 'Já instalada: não detectada.')" \
+        "O arquivo de backup em Downloads não será apagado."
+
+    if [ "$existente" = true ]; then
+        if confirmar_acao "Criar um backup de segurança da instalação atual antes?" "s"; then
+            ui_buffer_flush 2>/dev/null || true
+            printf '⏳ Criando backup de segurança de %s...\n' "$alias"
+            if linux_backup_distro "$alias" automatico; then
+                printf '✅ Backup de segurança: %s\n' "$(caminho_curto "$LINUX_BACKUP_RESULT_FILE")"
+                criar_seg=true
+            else
+                error "O backup de segurança falhou. A restauração foi cancelada."
+                pause
+                return 1
+            fi
+        fi
+    fi
+
+    confirmar_acao "Restaurar este backup agora?" "n" || return 0
+    ui_buffer_flush 2>/dev/null || true
+    printf '⏳ Restaurando backup... não feche o Termux.\n'
+    proot-distro restore "$arquivo" 2>&1 | tee -a "$LINUX_LOG" || rc=${PIPESTATUS[0]}
+    if [ "$rc" -ne 0 ]; then
+        error "A restauração terminou com erro."
+        [ "$criar_seg" = true ] && info "O backup de segurança foi mantido em Downloads."
+        pause
+        return 1
+    fi
+
+    linux_log "backup restaurado: ${alias:-desconhecida} <- $arquivo"
+    [ -n "$alias" ] && linux_invalidar_cache_distro "$alias"
+    cabecalho_tela "✅ Backup restaurado" "${alias:-Distribuição Linux}"
+    if [ -n "$alias" ]; then
+        linux_coletar_info_distro "$alias" true
+        caixa_simples_wrap "Resultado" \
+            "Distribuição: $LINUX_INFO_NAME" \
+            "Saúde: ${LINUX_INFO_HEALTH_ICON} ${LINUX_INFO_HEALTH_LABEL}" \
+            "Tamanho atual: $LINUX_INFO_SIZE" \
+            "$([ "$criar_seg" = true ] && printf 'Backup anterior: %s' "$(basename "$LINUX_BACKUP_RESULT_FILE")" || printf 'Arquivo restaurado: %s' "$(basename "$arquivo")")"
     else
-        error "Não foi possível criar o backup."
+        caixa_simples_wrap "Resultado" \
+            "Restauração concluída pelo proot-distro." \
+            "Abra Meus Linux para conferir a distribuição restaurada."
     fi
     pause
 }
@@ -2067,19 +2605,23 @@ menu_linux_celular() {
             instaladas=${#LINUX_INSTALLED_DISTROS[@]}
         fi
         menu_unificado "🐧 LINUX NO CELULAR" "PRoot sem root • perfil ${LINUX_PROFILE}" \
-            "[0] Voltar  •  [1–5] Selecionar" \
+            "[0] Voltar  •  [1–7] Selecionar" \
             "1|🐧|Meus Linux|$instaladas instalada(s) • administrar" \
             "2|⬇️|Instalar novo Linux|Escolher uma distribuição" \
-            "3|🖥️|Termux:X11|Desktops e interface gráfica" \
-            "4|📱|Compatibilidade|RAM, CPU e espaço" \
-            "5|ℹ️|Status do Linux|PRoot: $proot_status • X11: $x11_status"
+            "3|♻️|Restaurar backup|Buscar em Downloads" \
+            "4|🖥️|Termux:X11|Desktops e interface gráfica" \
+            "5|📱|Compatibilidade|RAM, CPU e espaço" \
+            "6|🩺|Ambiente PRoot|Diagnosticar e reparar" \
+            "7|ℹ️|Status do Linux|PRoot: $proot_status • X11: $x11_status"
         ler_opcao
         case "$RESPOSTA_MENU" in
             1) linux_meus_linux ;;
             2) linux_instalar_distro ;;
-            3) menu_termux_x11 ;;
-            4) linux_mostrar_perfil ;;
-            5)
+            3) linux_restaurar_backup ;;
+            4) menu_termux_x11 ;;
+            5) linux_mostrar_perfil ;;
+            6) menu_ambiente_proot ;;
+            7)
                 cabecalho_tela "ℹ️ Linux no celular" "Estado dos componentes"
                 caixa_simples "Status" \
                     "Perfil: ${LINUX_PROFILE_ICON} ${LINUX_PROFILE}" \

@@ -32,7 +32,7 @@ grep -Fq 'openbox-session' "$LINUX"
 grep -Fq 'startplasma-x11' "$LINUX"
 grep -Fq 'gnome-session' "$LINUX"
 grep -Fq 'Você pode instalar mais de um ambiente na mesma distribuição.' "$LINUX"
-grep -Fq 'Perfil estimado' "$LINUX"
+grep -Fq 'Perfil:' "$LINUX"
 grep -Fq 'podem apresentar travamentos' "$LINUX"
 grep -Fq 'linux_docker_arquitetura_dispositivo' "$LINUX"
 grep -Fq 'linux_verificar_compatibilidade_imagem' "$LINUX"
@@ -50,6 +50,9 @@ grep -Fq 'linux_meus_linux()' "$LINUX"
 grep -Fq 'menu_linux_distro()' "$LINUX"
 grep -Fq 'linux_atualizar_distro()' "$LINUX"
 grep -Fq 'linux_backup_distro()' "$LINUX"
+grep -Fq 'linux_restaurar_backup()' "$LINUX"
+grep -Fq 'proot-distro restore "$arquivo"' "$LINUX"
+grep -Fq 'Restaurar backup|Buscar em Downloads' "$LINUX"
 grep -Fq 'linux_exibir_info_distro()' "$LINUX"
 grep -Fq 'linux_distro_tamanho_kb()' "$LINUX"
 grep -Fq 'linux_testar_saude_distro()' "$LINUX"
@@ -65,6 +68,16 @@ grep -Fq 'QEMU_REQUIRED' "$LINUX"
 grep -Fq 'LOADER_MISSING' "$LINUX"
 grep -Fq 'linux_rotulo_curto_saude()' "$LINUX"
 grep -Fq 'Testar novamente' "$LINUX"
+grep -Fq 'linux_diagnosticar_ambiente_proot()' "$LINUX"
+grep -Fq 'linux_reparar_ambiente_proot()' "$LINUX"
+grep -Fq 'menu_ambiente_proot()' "$LINUX"
+grep -Fq 'Ambiente PRoot|Diagnosticar e reparar' "$LINUX"
+grep -Fq 'install -y --reinstall proot proot-distro' "$LINUX"
+grep -Fq 'host_shell="${PREFIX:-}/bin/sh"' "$LINUX"
+grep -Fq 'linux_traduzir_erro_proot()' "$LINUX"
+grep -Fq 'linux_coletar_contexto_arquitetura()' "$LINUX"
+grep -Fq 'PROOT_ENV_FAILURE' "$LINUX"
+grep -Fq 'Erro original do PRoot — preservado' "$LINUX"
 
 # Referências OCI atuais podem conter tag (:) e caminho (/).
 (
@@ -274,8 +287,96 @@ EOF
     }
     linux_testar_saude_distro alpine true
     [ "$LINUX_INFO_HEALTH" = problem ]
-    [ "$LINUX_DIAG_CODE" = EXEC_FORMAT ]
-    [ "$LINUX_DIAG_REASON" = 'Formato incompatível' ]
+    [ "$LINUX_DIAG_CODE" = PROOT_ENV_FAILURE ]
+    [ "$LINUX_DIAG_REASON" = 'Falha do ambiente PRoot' ]
 )
 
-echo "OK: Linux no celular integra diagnóstico explicativo, Meus Linux, tamanho, backup, atualização, PRoot, X11 e múltiplos desktops."
+# Distingue geração da CPU de ABI/bitness do Termux e traduz erros conhecidos.
+(
+    set -u
+    PAINEL_DIR="/tmp/painel-test-linux-arch-context"
+    LOG_DIR="$PAINEL_DIR/.logs"
+    HOME="/tmp"
+    PREFIX="/tmp/prefix"
+    source "$LINUX"
+    linux_arquitetura() { printf 'arm\n'; }
+    linux_bits_processo() { printf '32\n'; }
+    linux_cpu_arm_geracao() { printf 'ARMv8\n'; }
+    uname() { printf 'armv8l\n'; }
+    getprop() {
+        case "${1:-}" in
+            ro.product.cpu.abi) printf 'armeabi-v7a\n' ;;
+            ro.product.cpu.abilist) printf 'arm64-v8a,armeabi-v7a\n' ;;
+            ro.product.cpu.abilist32) printf 'armeabi-v7a\n' ;;
+            ro.product.cpu.abilist64) printf 'arm64-v8a\n' ;;
+        esac
+    }
+    linux_coletar_contexto_arquitetura
+    [ "$LINUX_ARCH_TERMUX" = arm ]
+    [ "$LINUX_ARCH_BITS" = 32 ]
+    [ "$LINUX_ARCH_CPU_GEN" = ARMv8 ]
+    [ "$LINUX_ARCH_ANDROID_ABI" = armeabi-v7a ]
+    [[ "$LINUX_ARCH_INTERPRETATION" == *'Termux atual executa em 32 bits'* ]]
+
+    traduzido="$(linux_traduzir_erro_proot 'proot error: Exec format error; the program is a foreign binary but qemu was not specified; the loader was not found or does not work.')"
+    [[ "$traduzido" == *'recusou o formato'* ]]
+    [[ "$traduzido" == *'QEMU'* ]]
+    [[ "$traduzido" == *'loader do sistema'* ]]
+)
+
+# Simula o diagnóstico do motor PRoot sem tocar em distribuições reais.
+(
+    set -u
+    TMPROOT="/tmp/painel-test-proot-env-$$"
+    trap 'rm -rf "$TMPROOT"' EXIT
+    PAINEL_DIR="$TMPROOT/painel"
+    LOG_DIR="$PAINEL_DIR/.logs"
+    HOME="$TMPROOT/home"
+    PREFIX="$TMPROOT/prefix"
+    TMPDIR="$PREFIX/tmp"
+    mkdir -p "$PREFIX/bin" "$TMPDIR" "$LOG_DIR"
+    printf '#!/bin/sh\nexit 0\n' > "$PREFIX/bin/sh"
+    chmod +x "$PREFIX/bin/sh"
+    source "$LINUX"
+    dpkg-query() {
+        case "${*: -1}" in
+            proot) printf '5.1-test' ;;
+            proot-distro) printf '4.0-test' ;;
+            *) return 1 ;;
+        esac
+    }
+    proot() {
+        printf '__TM_PROOT_HOST_OK__'
+    }
+    proot-distro() { return 0; }
+    timeout() { shift; "$@"; }
+    linux_diagnosticar_ambiente_proot
+    [ "$LINUX_PROOT_ENV_STATUS" = OK ]
+    [ "$LINUX_PROOT_ENV_TMP_STATUS" = OK ]
+    [ "$LINUX_PROOT_ENV_HOST_STATUS" = OK ]
+    [ "$LINUX_PROOT_ENV_PROOT_VERSION" = '5.1-test' ]
+)
+
+
+# Valida descoberta de backups criados pelo Manager e leitura do alias.
+(
+    set -u
+    TMPROOT="/tmp/painel-test-linux-restore-$$"
+    trap 'rm -rf "$TMPROOT"' EXIT
+    PAINEL_DIR="$TMPROOT/painel"
+    LOG_DIR="$PAINEL_DIR/.logs"
+    HOME="$TMPROOT/home"
+    PREFIX="$TMPROOT/prefix"
+    DOWNLOADS_DIR="$TMPROOT/Downloads"
+    mkdir -p "$DOWNLOADS_DIR" "$LOG_DIR"
+    touch "$DOWNLOADS_DIR/TermuxManager-debian-20260924-120000.tar.xz"
+    touch "$DOWNLOADS_DIR/arquivo-qualquer.tar"
+    source "$LINUX"
+    resolver_downloads_dir() { return 0; }
+    [ "$(linux_backup_alias_arquivo "$DOWNLOADS_DIR/TermuxManager-debian-20260924-120000.tar.xz")" = debian ]
+    linux_coletar_backups_downloads
+    [ "${#LINUX_BACKUP_FILES[@]}" -eq 1 ]
+    [ "${LINUX_BACKUP_FILES[0]}" = "$DOWNLOADS_DIR/TermuxManager-debian-20260924-120000.tar.xz" ]
+)
+
+echo "OK: Linux no celular integra diagnóstico explicativo, reparo do ambiente PRoot, restauração de backup, Meus Linux, tamanho, atualização, X11 e múltiplos desktops."
