@@ -239,6 +239,214 @@ alterar_nome_exibicao_projeto() {
     pause
 }
 
+
+# Resumo leve usado na lista e no painel de cada projeto.
+projeto_git_status_resumido() {
+    local projeto="$1" branch alteracoes remoto
+    PROJ_GIT_REPO=false
+    PROJ_GIT_BRANCH=""
+    PROJ_GIT_CHANGES=0
+    PROJ_GIT_REMOTE=""
+    PROJ_GIT_LABEL="Sem Git"
+    comando_existe git || return 0
+    [ -d "$projeto/.git" ] || return 0
+    PROJ_GIT_REPO=true
+    branch="$(git -C "$projeto" symbolic-ref --short HEAD 2>/dev/null || git -C "$projeto" rev-parse --short HEAD 2>/dev/null || true)"
+    alteracoes="$(git -C "$projeto" status --porcelain 2>/dev/null || true)"
+    remoto="$(git -C "$projeto" remote get-url origin 2>/dev/null || true)"
+    if [ -z "$remoto" ]; then
+        local primeiro
+        primeiro="$(git -C "$projeto" remote 2>/dev/null | head -n 1 || true)"
+        [ -n "$primeiro" ] && remoto="$(git -C "$projeto" remote get-url "$primeiro" 2>/dev/null || true)"
+    fi
+    PROJ_GIT_BRANCH="${branch:-sem branch}"
+    PROJ_GIT_CHANGES="$(printf '%s\n' "$alteracoes" | sed '/^$/d' | wc -l | tr -d ' ')"
+    PROJ_GIT_REMOTE="$remoto"
+    if [ "${PROJ_GIT_CHANGES:-0}" -gt 0 ] 2>/dev/null; then
+        PROJ_GIT_LABEL="Git $PROJ_GIT_BRANCH • ${PROJ_GIT_CHANGES} alt."
+    else
+        PROJ_GIT_LABEL="Git $PROJ_GIT_BRANCH • limpo"
+    fi
+}
+
+projeto_componentes_ativos() {
+    local projeto="$1" nome pf qtd=0
+    PROJ_COMPONENTES_ATIVOS=0
+    declare -F id_projeto >/dev/null 2>&1 || return 0
+    declare -F pid_ativo >/dev/null 2>&1 || return 0
+    [ -d "${PID_DIR:-}" ] || return 0
+    id_projeto "$projeto"
+    for pf in "$PID_DIR/${ID_PROJETO}_"*.pid; do
+        [ -e "$pf" ] || continue
+        pid_ativo "$pf" && qtd=$((qtd + 1))
+    done
+    PROJ_COMPONENTES_ATIVOS="$qtd"
+}
+
+projeto_tamanho_resumido() {
+    local projeto="$1" valor
+    valor="$(du -sh "$projeto" 2>/dev/null | awk '{print $1}' || true)"
+    printf '%s' "${valor:-?}"
+}
+
+projeto_resumo_rapido() {
+    local projeto="$1"
+    rotulo_stack_projeto "$projeto"
+    projeto_git_status_resumido "$projeto"
+    projeto_componentes_ativos "$projeto"
+    PROJ_RESUMO="$ROTULO_STACK • $PROJ_GIT_LABEL"
+    if [ "${PROJ_COMPONENTES_ATIVOS:-0}" -gt 0 ] 2>/dev/null; then
+        PROJ_RESUMO+=" • ${PROJ_COMPONENTES_ATIVOS} ativo(s)"
+    else
+        PROJ_RESUMO+=" • parado"
+    fi
+}
+
+projeto_git_status_tela() {
+    local projeto="$1" remoto_exib
+    projeto_git_status_resumido "$projeto"
+    nome_amigavel_projeto "$projeto"
+    cabecalho_tela "🌿 Git do projeto" "$NOME_PROJETO"
+    if [ "$PROJ_GIT_REPO" != true ]; then
+        caixa_simples "Sem repositório Git" \
+            "Este projeto ainda não possui .git." \
+            "Use Enviar para GitHub para preparar e publicar."
+        pause
+        return 0
+    fi
+    remoto_exib="${PROJ_GIT_REMOTE:-não configurado}"
+    caixa_simples_wrap "Estado atual" \
+        "Branch: ${PROJ_GIT_BRANCH:-desconhecida}" \
+        "Alterações locais: ${PROJ_GIT_CHANGES:-0}" \
+        "Remoto: $remoto_exib"
+    pause
+}
+
+listar_branches_projeto() {
+    local projeto="$1" atual linhas
+    cabecalho_tela "🌿 Branches" "$(basename "$projeto")"
+    if [ ! -d "$projeto/.git" ] || ! comando_existe git; then
+        caixa_simples "Git não preparado" "Este projeto ainda não possui branches locais."
+        pause
+        return 0
+    fi
+    atual="$(git -C "$projeto" symbolic-ref --short HEAD 2>/dev/null || true)"
+    linhas="$(git -C "$projeto" branch --format='%(refname:short)' 2>/dev/null || true)"
+    if [ -z "$linhas" ]; then
+        caixa_simples "Nenhuma branch" "Ainda não existe commit/branch local para listar."
+    else
+        local -a itens=()
+        local b
+        while IFS= read -r b; do
+            [ -n "$b" ] || continue
+            if [ "$b" = "$atual" ]; then itens+=("● $b (atual)"); else itens+=("○ $b"); fi
+        done <<< "$linhas"
+        caixa_simples_wrap "Branches locais" "${itens[@]}"
+    fi
+    pause
+}
+
+atualizar_projeto_git() {
+    local projeto="$1" remote branch alteracoes antes depois contagens ahead behind
+    cabecalho_tela "⬇️ Atualizar projeto" "Sincronizar com o repositório remoto"
+    if ! comando_existe git || [ ! -d "$projeto/.git" ]; then
+        caixa_simples "Git não configurado" "Este projeto ainda não possui um repositório Git local."
+        pause
+        return 1
+    fi
+    branch="$(git -C "$projeto" symbolic-ref --short HEAD 2>/dev/null || true)"
+    [ -n "$branch" ] || {
+        caixa_simples "Branch indisponível" "Não foi possível identificar uma branch local ativa."
+        pause
+        return 1
+    }
+    remote="origin"
+    git -C "$projeto" remote get-url "$remote" >/dev/null 2>&1 || remote="$(git -C "$projeto" remote | head -n 1 || true)"
+    if [ -z "$remote" ]; then
+        caixa_simples "Sem remoto" "Nenhum repositório remoto foi configurado para este projeto."
+        pause
+        return 1
+    fi
+    alteracoes="$(git -C "$projeto" status --porcelain 2>/dev/null || true)"
+    if [ -n "$alteracoes" ]; then
+        caixa_simples_wrap "Alterações locais encontradas" \
+            "Existem $(printf '%s\n' "$alteracoes" | sed '/^$/d' | wc -l | tr -d ' ') arquivo(s) alterado(s)." \
+            "Para evitar perda ou conflito, o Manager não fará pull enquanto houver alterações locais." \
+            "Envie/commite suas alterações primeiro ou resolva-as manualmente."
+        pause
+        return 1
+    fi
+    caixa_simples "Origem" "Remoto: $remote" "Branch: $branch" "Modo seguro: somente avanço rápido (fast-forward)"
+    confirmar_acao "Buscar atualizações agora?" "s" || return 0
+    antes="$(git -C "$projeto" rev-parse --short HEAD 2>/dev/null || true)"
+    info "Consultando o remoto..."
+    if ! git -C "$projeto" fetch "$remote" "$branch" >>"${GITHUB_LOG_FILE:-$LOG_FILE}" 2>&1; then
+        error "Não foi possível consultar o remoto."
+        pause
+        return 1
+    fi
+    if ! git -C "$projeto" rev-parse "$remote/$branch" >/dev/null 2>&1; then
+        caixa_simples "Branch remota ausente" "Não encontrei $remote/$branch no repositório remoto."
+        pause
+        return 1
+    fi
+    contagens="$(git -C "$projeto" rev-list --left-right --count "HEAD...$remote/$branch" 2>/dev/null || printf '0 0')"
+    ahead="$(printf '%s' "$contagens" | awk '{print $1}')"
+    behind="$(printf '%s' "$contagens" | awk '{print $2}')"
+    if [ "${ahead:-0}" -gt 0 ] 2>/dev/null && [ "${behind:-0}" -gt 0 ] 2>/dev/null; then
+        caixa_simples_wrap "Histórico divergente" \
+            "Local: ${ahead} commit(s) à frente." \
+            "Remoto: ${behind} commit(s) à frente." \
+            "O Manager não cria merge nem rebase automaticamente. Resolva manualmente para proteger o histórico."
+        pause
+        return 1
+    fi
+    if [ "${behind:-0}" -eq 0 ] 2>/dev/null; then
+        cabecalho_tela "✅ Projeto atualizado" "$branch"
+        if [ "${ahead:-0}" -gt 0 ] 2>/dev/null; then
+            caixa_simples "Nada para baixar" "Seu projeto está ${ahead} commit(s) à frente do remoto." "Use Enviar para GitHub para publicar."
+        else
+            caixa_simples "Nada para baixar" "A branch local já está sincronizada com $remote/$branch."
+        fi
+        pause
+        return 0
+    fi
+    info "Aplicando ${behind} commit(s) em modo fast-forward..."
+    if ! git -C "$projeto" merge --ff-only "$remote/$branch" >>"${GITHUB_LOG_FILE:-$LOG_FILE}" 2>&1; then
+        error "Não foi possível aplicar a atualização em modo seguro."
+        pause
+        return 1
+    fi
+    depois="$(git -C "$projeto" rev-parse --short HEAD 2>/dev/null || true)"
+    cabecalho_tela "✅ Projeto atualizado" "$branch"
+    caixa_simples "Sincronização concluída" \
+        "Commit anterior: ${antes:-?}" \
+        "Commit atual: ${depois:-?}" \
+        "Recebidos: ${behind} commit(s)"
+    pause
+}
+
+menu_git_projeto() {
+    local projeto="$1"
+    while true; do
+        projeto_git_status_resumido "$projeto"
+        menu_unificado "🌿 Git / GitHub" "${PROJ_GIT_LABEL}" "[0] Voltar  •  [1–4] Selecionar" \
+            "1|🔎|Status do Git|Branch, alterações e remoto" \
+            "2|⬇️|Atualizar do remoto|Baixar somente em modo seguro" \
+            "3|🐙|Enviar para GitHub|Commitar e publicar alterações" \
+            "4|🌿|Ver branches|Branches locais do projeto"
+        ler_opcao
+        case "$RESPOSTA_MENU" in
+            1) projeto_git_status_tela "$projeto" ;;
+            2) atualizar_projeto_git "$projeto" ;;
+            3) enviar_projeto_github "$projeto" ;;
+            4) listar_branches_projeto "$projeto" ;;
+            0) return ;;
+            *) feedback_curto "Opção inválida." ;;
+        esac
+    done
+}
+
 # ============================================================================
 # GERENCIAR PROJETO (lista → seleciona → tela única com todas as ações)
 # ============================================================================
@@ -246,27 +454,30 @@ alterar_nome_exibicao_projeto() {
 gerenciar_projetos() {
     while true; do
         descobrir_entradas
-        cabecalho_tela "📂 Projetos e gerenciamento" "${#PROJETOS_ENCONTRADOS[@]} projeto(s) detectado(s)"
-
         if [ ${#PROJETOS_ENCONTRADOS[@]} -eq 0 ]; then
+            cabecalho_tela "📂 Meus projetos" "Nenhum projeto detectado"
             caixa_simples "📭 Lista vazia" "Use a importação assistida para adicionar seu primeiro projeto."
-        else
-            caixa_linha_topo
-            local i=1 entrada caminho origem
-            for entrada in "${PROJETOS_ENCONTRADOS[@]}"; do
-                caminho="${entrada%%|*}"; origem="${entrada##*|}"
-                nome_amigavel_projeto "$caminho"; rotulo_stack_projeto "$caminho"
-                menu_opcao "$i" "📦" "$NOME_PROJETO$([ "$PROJETO_TEM_APELIDO" = true ] && printf " ⭐")" "$ROTULO_STACK • $origem"
-                i=$((i+1))
-            done
-            caixa_linha_baixo
+            rodape_atalhos "[0] Voltar  •  [L] Limpeza"
+            ler_opcao
+            case "${RESPOSTA_MENU,,}" in 0) return ;; l) menu_exclusao_painel ;; *) feedback_curto "Opção inválida." ;; esac
+            continue
         fi
 
-        echo
-        caixa_linha_topo
-        menu_opcao "L" "🧹" "Limpeza do Painel" "Excluir projeto, coleção de projetos ou todo o Painel"
-        caixa_linha_baixo
-        rodape_atalhos "[0] Voltar  •  [número] Gerenciar  •  [L] Limpeza"
+        local i=1 entrada caminho origem total_ativos=0
+        local -a opcoes=()
+        for entrada in "${PROJETOS_ENCONTRADOS[@]}"; do
+            caminho="${entrada%%|*}"; origem="${entrada##*|}"
+            nome_amigavel_projeto "$caminho"
+            projeto_resumo_rapido "$caminho"
+            total_ativos=$((total_ativos + ${PROJ_COMPONENTES_ATIVOS:-0}))
+            opcoes+=("$i|📦|$NOME_PROJETO$([ "$PROJETO_TEM_APELIDO" = true ] && printf ' ⭐')|$PROJ_RESUMO")
+            i=$((i+1))
+        done
+        opcoes+=("L|🧹|Limpeza do Painel|Excluir projetos e backups com confirmação")
+        menu_unificado "📂 MEUS PROJETOS" \
+            "${#PROJETOS_ENCONTRADOS[@]} projeto(s) • ${total_ativos} componente(s) ativo(s)" \
+            "[0] Voltar  •  [número] Abrir  •  [L] Limpeza" \
+            "${opcoes[@]}"
         ler_opcao
         case "${RESPOSTA_MENU,,}" in
             0) return ;;
@@ -276,7 +487,7 @@ gerenciar_projetos() {
                     entrada="${PROJETOS_ENCONTRADOS[$((RESPOSTA_MENU-1))]}"
                     tela_projeto "${entrada%%|*}"
                 else
-                    warn "Opção inválida."; pause
+                    feedback_curto "Opção inválida."
                 fi
                 ;;
         esac
@@ -290,56 +501,77 @@ montar_acoes_projeto() {
     if [ "$PROJ_MODO" = fullstack ]; then
         ACOES_PROJETO+=("1|🚀|Testar frontend|Instalar, validar e executar $FRONT_FRAMEWORK")
         ACOES_PROJETO+=("2|🧰|Testar backend|Instalar, validar e executar $BACK_FRAMEWORK")
-        ACOES_PROJETO+=("3|🧩|Testar sistema completo|Executar frontend e backend juntos")
+        ACOES_PROJETO+=("3|🧩|Testar sistema completo|Frontend e backend juntos")
         PROJ_ACAO_OFFSET=3
     else
-        ACOES_PROJETO+=("1|🚀|Testar projeto|Instalar, validar e executar a stack detectada")
+        ACOES_PROJETO+=("1|🚀|Testar projeto|Instalar, validar e executar")
         PROJ_ACAO_OFFSET=1
     fi
     local n=$((PROJ_ACAO_OFFSET+1))
-    ACOES_PROJETO+=("$n|📂|Abrir pasta|Abrir o diretório no Android"); n=$((n+1))
-    ACOES_PROJETO+=("$n|📋|Copiar projeto|Reabrir o assistente de cópia"); n=$((n+1))
-    ACOES_PROJETO+=("$n|🔧|Atualizar dependências|Reinstalar e verificar dependências"); n=$((n+1))
-    ACOES_PROJETO+=("$n|✏️|Nome de exibição|Definir ou remover apelido no Manager"); n=$((n+1))
-    ACOES_PROJETO+=("$n|🐙|Enviar para GitHub|Publicar ou enviar novas alterações com poucos passos"); n=$((n+1))
-    ACOES_PROJETO+=("$n|🔍|Informações|Exibir nomes, stack, tamanho e estrutura"); n=$((n+1))
-    ACOES_PROJETO+=("$n|💾|Fazer backup|Criar pacote compactado com data"); n=$((n+1))
+    ACOES_PROJETO+=("$n|🌿|Git / GitHub|Status, atualizar, enviar e branches"); n=$((n+1))
+    ACOES_PROJETO+=("$n|🔧|Dependências|Atualizar e verificar pacotes"); n=$((n+1))
+    ACOES_PROJETO+=("$n|💾|Fazer backup|Salvar cópia em Downloads"); n=$((n+1))
+    ACOES_PROJETO+=("$n|🔍|Informações|Stack, tamanho e estrutura"); n=$((n+1))
+    ACOES_PROJETO+=("$n|📂|Abrir pasta|Abrir diretório no Android"); n=$((n+1))
+    ACOES_PROJETO+=("$n|📋|Copiar projeto|Criar outra cópia do projeto"); n=$((n+1))
+    ACOES_PROJETO+=("$n|✏️|Nome de exibição|Definir apelido no Manager"); n=$((n+1))
     ACOES_PROJETO+=("$n|❌|Excluir projeto|Remover com opção de backup")
 }
 
 tela_projeto() {
-    local projeto="$1" op base
+    local projeto="$1" op base tamanho execucao git_texto
     while [ -e "$projeto" ]; do
-        detectar_estrutura_projeto "$projeto"; nome_amigavel_projeto "$projeto"; rotulo_stack_projeto "$projeto"
+        detectar_estrutura_projeto "$projeto"
+        nome_amigavel_projeto "$projeto"
+        projeto_resumo_rapido "$projeto"
         montar_acoes_projeto "$projeto"
+        tamanho="$(projeto_tamanho_resumido "$projeto")"
+        if [ "${PROJ_COMPONENTES_ATIVOS:-0}" -gt 0 ] 2>/dev/null; then
+            execucao="${PROJ_COMPONENTES_ATIVOS} componente(s) ativo(s)"
+        else
+            execucao="Parado"
+        fi
+        git_texto="$PROJ_GIT_LABEL"
         cabecalho_tela "📦 $NOME_PROJETO" "$ROTULO_STACK"
-        caixa_simples "🧭 Estrutura detectada" "📁 $projeto" \
-            "🌐 Frontend: ${FRONT_FRAMEWORK:-Não detectado}" "🧰  Backend: ${BACK_FRAMEWORK:-Não detectado}"
+        caixa_simples_wrap "Resumo" \
+            "Git: $git_texto" \
+            "Execução: $execucao" \
+            "Tamanho: $tamanho" \
+            "Pasta: $(caminho_curto "$projeto")"
         echo
         caixa_linha_topo
         local item n ic titulo desc
-        for item in "${ACOES_PROJETO[@]}"; do IFS='|' read -r n ic titulo desc <<< "$item"; menu_opcao "$n" "$ic" "$titulo" "$desc"; done
+        for item in "${ACOES_PROJETO[@]}"; do
+            IFS='|' read -r n ic titulo desc <<< "$item"
+            menu_opcao "$n" "$ic" "$titulo" "$desc"
+        done
         caixa_linha_baixo
         rodape_atalhos "[0] Voltar  •  [número] Executar ação"
-        ler_opcao; op="$RESPOSTA_MENU"; [ "$op" = 0 ] && return
+        ler_opcao
+        op="$RESPOSTA_MENU"
+        [ "$op" = 0 ] && return
         if [ "$PROJ_MODO" = fullstack ]; then
-            case "$op" in 1) testar_componente "$projeto" frontend;; 2) testar_componente "$projeto" backend;; 3) testar_componente "$projeto" ambos;; esac
+            case "$op" in
+                1) testar_componente "$projeto" frontend ;;
+                2) testar_componente "$projeto" backend ;;
+                3) testar_componente "$projeto" ambos ;;
+            esac
             base=3
         else
             [ "$op" = 1 ] && testar_projeto "$projeto"
             base=1
         fi
         case "$op" in
-            $((base+1))) abrir_pasta "$projeto" ;;
-            $((base+2))) copiar_projeto_existente "$projeto" ;;
-            $((base+3))) atualizar_dependencias_projeto "$projeto" ;;
-            $((base+4))) alterar_nome_exibicao_projeto "$projeto" ;;
-            $((base+5))) enviar_projeto_github "$projeto" ;;
-            $((base+6))) mostrar_informacoes_projeto "$projeto" ;;
-            $((base+7))) criar_backup_projeto "$projeto" ;;
+            $((base+1))) menu_git_projeto "$projeto" ;;
+            $((base+2))) atualizar_dependencias_projeto "$projeto" ;;
+            $((base+3))) criar_backup_projeto "$projeto" ;;
+            $((base+4))) mostrar_informacoes_projeto "$projeto" ;;
+            $((base+5))) abrir_pasta "$projeto" ;;
+            $((base+6))) copiar_projeto_existente "$projeto" ;;
+            $((base+7))) alterar_nome_exibicao_projeto "$projeto" ;;
             $((base+8))) excluir_projeto "$projeto" && return ;;
             0|1|2|3) : ;;
-            *) warn "Opção inválida."; pause ;;
+            *) feedback_curto "Opção inválida." ;;
         esac
     done
 }

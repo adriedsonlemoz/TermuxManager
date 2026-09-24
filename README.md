@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.90  
+**Versão atual:** 1.0.91  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -375,10 +375,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.90
-Tag: v1.0.90
-Release: Manager 1.0.90
-Pacote único: TermuxManager-v1.0.90.zip
+Versão: 1.0.91
+Tag: v1.0.91
+Release: Manager 1.0.91
+Pacote único: TermuxManager-v1.0.91.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 
@@ -533,9 +533,15 @@ Projeto de uso pessoal e educacional. Defina uma licença explícita no reposit�
 
 A existência do PID, sozinha, não significa mais que o servidor está saudável. O Manager revalida a porta antes de exibir o estado verde. Processos como `node --watch` que permanecem vivos após o servidor interno falhar aparecem em amarelo, e o fluxo de sistema completo não inicia o frontend enquanto o backend estiver indisponível.
 
+## Painel de projetos
+
+Em **Gerenciar projetos**, cada projeto mostra um resumo rápido da stack, estado do Git e componentes ativos. Ao abrir um projeto, o Manager exibe também tamanho e pasta antes das ações.
+
+A área **Git / GitHub** centraliza o status do repositório, envio de alterações, branches locais e a opção **Atualizar do remoto**. A atualização usa somente avanço rápido (`fast-forward`): se houver arquivos locais alterados ou histórico divergente, o Manager não sobrescreve nem cria merge automaticamente.
+
 ## Envio simplificado para GitHub
 
-Dentro de **Gerenciar projetos → projeto → Enviar para GitHub**, o Manager prepara o Git e o GitHub CLI automaticamente. Na primeira publicação ele instala `git`/`gh` se necessário, conduz o login oficial do GitHub, cria um `.gitignore` de proteção, inicializa o repositório local, configura uma identidade Git local com o endereço `noreply` do GitHub e pergunta apenas o nome do repositório e a visibilidade (privado por padrão). Depois disso, os próximos envios reutilizam o repositório remoto e normalmente exigem apenas a mensagem do commit.
+Dentro de **Gerenciar projetos → projeto → Git / GitHub → Enviar para GitHub**, o Manager prepara o Git e o GitHub CLI automaticamente. Na primeira publicação ele instala `git`/`gh` se necessário, conduz o login oficial do GitHub, cria um `.gitignore` de proteção, inicializa o repositório local, configura uma identidade Git local com o endereço `noreply` do GitHub e pergunta apenas o nome do repositório e a visibilidade (privado por padrão). Depois disso, os próximos envios reutilizam o repositório remoto e normalmente exigem apenas a mensagem do commit.
 
 O Manager **não usa `push --force` automaticamente**. Se o remoto tiver histórico diferente, o envio é interrompido e o usuário recebe orientação para sincronizar primeiro. Arquivos sensíveis comuns (`.env`, `.npmrc`, chaves privadas, credenciais) são ignorados por padrão; se algum deles já estiver rastreado pelo Git, o envio é bloqueado até ser removido do índice. Quando o projeto é a raiz `~/Painel`, estados internos do Manager e `~/Painel/projetos` também ficam fora da publicação.
 

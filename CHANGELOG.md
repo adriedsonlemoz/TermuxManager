@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.91] - 2026-09-24
+
+### Melhorado
+- **Meus projetos** agora mostra um resumo por projeto com stack detectada, branch/estado do Git e quantidade de componentes ativos.
+- O painel de cada projeto ganhou um resumo compacto com **Git**, **execução**, **tamanho** e **pasta**, evitando precisar abrir Informações apenas para checar o estado atual.
+- As ações do projeto foram reorganizadas para concentrar operações relacionadas e reduzir a sensação de menu espalhado.
+
+### Adicionado
+- Novo submenu **Git / GitHub** dentro de cada projeto com **Status do Git**, **Atualizar do remoto**, **Enviar para GitHub** e **Ver branches**.
+- Nova atualização segura do projeto pelo repositório remoto usando apenas **fast-forward**. O Manager não faz merge, rebase ou force push automaticamente.
+- A atualização remota é bloqueada quando existem alterações locais, protegendo arquivos ainda não commitados.
+
+### Proteção
+- Se a branch local e remota estiverem divergentes, o Manager apenas informa a situação e não altera o histórico automaticamente.
+
 ## [1.0.90] - 2026-09-24
 
 ### Melhorado
