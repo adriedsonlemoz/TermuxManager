@@ -33,11 +33,18 @@ ajuda_primeira_instalacao() {
 
 ajuda_atualizacoes() {
     cabecalho_tela "🔄 Como atualizar" "Pacote completo ou módulo individual"
-    caixa_simples "Atualização completa" \
+    caixa_simples "Atualização pelo GitHub — recomendada" \
+        "1. Abra Manager > Atualizar Manager." \
+        "2. Escolha Verificar no GitHub." \
+        "3. O Manager compara a versão instalada com a branch main." \
+        "4. Se houver versão nova, mostra o changelog, valida, cria backup e atualiza." \
+        "Não é necessário criar GitHub Releases. A branch main é o canal estável."
+    echo
+    caixa_simples "Atualização por ZIP — alternativa" \
         "1. Coloque TermuxManager-vX.Y.Z.zip em Downloads." \
-        "2. Abra Atualizar Manager." \
-        "3. Escolha Atualização completa." \
-        "O Manager valida, calcula espaço, cria backup e aplica a nova versão."
+        "2. Abra Atualizar Manager > Atualizar por ZIP." \
+        "3. Selecione o pacote desejado." \
+        "O mesmo fluxo de validação e backup é aplicado."
     echo
     caixa_simples "Durante a atualização" \
         "A tela permanece fixa e altera somente a etapa atual." \
@@ -91,7 +98,7 @@ ajuda_menus() {
     echo
     caixa_simples "🛠️ Ambiente"         "Instalar ferramentas: linguagens, editores, shells, bancos e utilitários."         "Ambiente Termux: atualização, armazenamento e manutenção."         "Diagnóstico rápido: variante do Termux e ferramentas detectadas."
     echo
-    caixa_simples "⚙️ Manager"         "Atualizar Manager: atualização segura do pacote ou módulo."         "Configurações: aparência, caminhos, execução, Fish e manutenção."         "Sobre e Ajuda: versão, ambiente, changelog e manual interno."
+    caixa_simples "⚙️ Manager"         "Atualizar Manager: GitHub main, ZIP local ou módulo individual."         "Configurações: aparência, caminhos, execução, Fish e manutenção."         "Sobre e Ajuda: versão, ambiente, changelog e manual interno."
     pause
 }
 

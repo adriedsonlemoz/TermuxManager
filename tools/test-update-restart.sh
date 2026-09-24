@@ -21,6 +21,16 @@ SCRIPT
 for modulo in core.sh config.sh ui.sh import.sh projects.sh runtime.sh termux.sh updater.sh settings.sh help.sh app.sh; do
     printf ':\n' > "$PKG/modules/$modulo"
 done
+{
+    printf '{\n  "version": "9.9.9",\n  "files": {\n'
+    first=true
+    while IFS= read -r arquivo; do
+        hash="$(sha256sum "$PKG/$arquivo" | awk '{print $1}')"
+        if [ "$first" = true ]; then first=false; else printf ',\n'; fi
+        printf '    "%s": "%s"' "$arquivo" "$hash"
+    done < <(cd "$PKG" && find manager.sh modules -type f | sort)
+    printf '\n  }\n}\n'
+} > "$PKG/MANIFEST.json"
 (
     cd "$PKG"
     zip -qr "$TMP_BASE/manager-v9.9.9.zip" .

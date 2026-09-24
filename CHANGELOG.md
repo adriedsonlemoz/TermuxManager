@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.76] - 2026-09-23
+
+### Adicionado
+- Atualização automática do Termux Manager diretamente pela **branch `main` do GitHub**, sem depender de GitHub Releases.
+- Comparação da versão instalada com o `MANIFEST.json` publicado na `main`.
+- Exibição do trecho da nova versão do `CHANGELOG.md` antes da confirmação da atualização.
+- Validação completa dos hashes do `MANIFEST.json` antes de aplicar um pacote de atualização.
+
+### Melhorado
+- O menu **Atualizar Manager** agora oferece **Verificar no GitHub**, **Atualizar por ZIP**, **Atualizar um módulo** e **Ver última atualização**.
+- A atualização completa agora sincroniza também `install.sh`, README, CHANGELOG, padrão de release, manifesto, ferramentas, recursos e arquivos de configuração distribuídos pelo projeto.
+- O backup de atualização passou a incluir os arquivos auxiliares do projeto, não apenas `manager.sh` e `modules/`.
+
+### Mantido
+- A branch `main` continua sendo o canal estável, evitando a necessidade de configurar Releases no GitHub.
+- A atualização local por ZIP continua disponível como alternativa e recuperação offline.
+
 ## [1.0.75] - 2026-09-23
 
 ### Melhorado

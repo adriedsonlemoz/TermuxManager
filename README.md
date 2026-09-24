@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.75  
+**Versão atual:** 1.0.76  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -144,6 +144,23 @@ O menu principal foi reduzido a três áreas para evitar uma lista longa de opç
 - **Ambiente:** reúne **Instalar ferramentas**, **Ambiente Termux** e **Diagnóstico rápido**.
 - **Manager:** reúne **Atualizar Manager**, **Configurações**, **Sobre** e **Ajuda**.
 
+### Atualização direta pela branch `main`
+
+Em **Manager → Atualizar Manager → Verificar no GitHub**, o Manager consulta diretamente a branch `main` do repositório oficial. Não é necessário criar Releases ou tags manualmente para esse fluxo.
+
+Quando existe uma versão mais nova, o Manager:
+
+1. compara a versão instalada com `MANIFEST.json` da `main`;
+2. mostra a nova versão e o trecho correspondente do `CHANGELOG.md`;
+3. pede confirmação antes de modificar qualquer arquivo;
+4. baixa o ZIP da branch `main`;
+5. valida todos os hashes declarados em `MANIFEST.json` e a sintaxe dos scripts;
+6. cria backup da instalação atual;
+7. sincroniza código, documentação, instalador e ferramentas auxiliares;
+8. reinicia automaticamente na nova versão.
+
+Se a consulta falhar ou a integridade do pacote não conferir, a instalação atual permanece intacta. A atualização por ZIP em Downloads continua disponível como alternativa.
+
 Nenhuma função foi removida; apenas as funções relacionadas passaram a ficar agrupadas em submenus.
 
 ## Importação de projetos
@@ -261,10 +278,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.75
-Tag: v1.0.75
-Release: Manager 1.0.75
-Pacote único: TermuxManager-v1.0.75.zip
+Versão: 1.0.76
+Tag: v1.0.76
+Release: Manager 1.0.76
+Pacote único: TermuxManager-v1.0.76.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

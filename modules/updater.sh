@@ -1,6 +1,153 @@
 # Módulo: updater.sh
 # Atualização completa ou isolada do Manager.sh.
 
+
+MANAGER_GITHUB_BRANCH="${TERMUX_MANAGER_GITHUB_BRANCH:-main}"
+MANAGER_GITHUB_RAW_BASE="${TERMUX_MANAGER_GITHUB_RAW_BASE:-https://raw.githubusercontent.com/adriedsonlemoz/TermuxManager/${MANAGER_GITHUB_BRANCH}}"
+MANAGER_GITHUB_MANIFEST_URL="${TERMUX_MANAGER_GITHUB_MANIFEST_URL:-${MANAGER_GITHUB_RAW_BASE}/MANIFEST.json}"
+MANAGER_GITHUB_CHANGELOG_URL="${TERMUX_MANAGER_GITHUB_CHANGELOG_URL:-${MANAGER_GITHUB_RAW_BASE}/CHANGELOG.md}"
+MANAGER_GITHUB_ARCHIVE_URL="${TERMUX_MANAGER_GITHUB_ARCHIVE_URL:-https://github.com/adriedsonlemoz/TermuxManager/archive/refs/heads/${MANAGER_GITHUB_BRANCH}.zip}"
+GITHUB_REMOTE_VERSION=""
+GITHUB_REMOTE_CHANGELOG=""
+GITHUB_UPDATE_STATE="unknown"
+
+versao_semver_valida() {
+    [[ "${1:-}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+}
+
+versao_semver_maior() {
+    local a="$1" b="$2" a1 a2 a3 b1 b2 b3
+    versao_semver_valida "$a" && versao_semver_valida "$b" || return 1
+    IFS=. read -r a1 a2 a3 <<< "$a"
+    IFS=. read -r b1 b2 b3 <<< "$b"
+    if ((10#$a1 > 10#$b1)); then return 0; fi
+    if ((10#$a1 < 10#$b1)); then return 1; fi
+    if ((10#$a2 > 10#$b2)); then return 0; fi
+    if ((10#$a2 < 10#$b2)); then return 1; fi
+    ((10#$a3 > 10#$b3))
+}
+
+consultar_atualizacao_github() {
+    command -v curl >/dev/null 2>&1 || return 2
+    local manifest changelog versao
+    manifest="$(curl -fsSL --retry 2 --connect-timeout 8 --max-time 15 "$MANAGER_GITHUB_MANIFEST_URL" 2>/dev/null)" || return 1
+    versao="$(printf '%s\n' "$manifest" | sed -nE 's/^[[:space:]]*"version":[[:space:]]*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/p' | head -n1)"
+    versao_semver_valida "$versao" || return 1
+
+    GITHUB_REMOTE_VERSION="$versao"
+    if [ "$GITHUB_REMOTE_VERSION" = "$MANAGER_VERSION" ]; then
+        GITHUB_UPDATE_STATE="same"
+    elif versao_semver_maior "$GITHUB_REMOTE_VERSION" "$MANAGER_VERSION"; then
+        GITHUB_UPDATE_STATE="new"
+    else
+        GITHUB_UPDATE_STATE="older"
+    fi
+
+    changelog="$(curl -fsSL --retry 1 --connect-timeout 6 --max-time 10 "$MANAGER_GITHUB_CHANGELOG_URL" 2>/dev/null || true)"
+    GITHUB_REMOTE_CHANGELOG="$(printf '%s\n' "$changelog" | awk -v v="$GITHUB_REMOTE_VERSION" '
+        $0 ~ "^## \\[" v "\\]" {show=1; next}
+        show && /^## \[/ {exit}
+        show {print}
+    ' | sed '/^[[:space:]]*$/d' | head -n 10)"
+    return 0
+}
+
+validar_manifesto_pacote_manager() {
+    local pasta="$1" manifest="$1/MANIFEST.json" relative expected target actual total=0
+    [ -f "$manifest" ] || { error "Pacote inválido: MANIFEST.json ausente."; return 1; }
+    command -v sha256sum >/dev/null 2>&1 || { error "sha256sum não está disponível."; return 1; }
+    while IFS=$'\t' read -r relative expected; do
+        [ -n "$relative" ] || continue
+        target="$pasta/$relative"
+        [ -f "$target" ] || { error "Manifesto inválido: arquivo ausente: $relative"; return 1; }
+        actual="$(sha256sum "$target" | awk '{print $1}')"
+        [ "${actual,,}" = "${expected,,}" ] || { error "Falha de integridade em: $relative"; return 1; }
+        total=$((total + 1))
+    done < <(
+        sed -n '/"files"[[:space:]]*:[[:space:]]*{/,/^[[:space:]]*}[[:space:]]*$/p' "$manifest" \
+            | sed -nE 's/^[[:space:]]*"([^"]+)":[[:space:]]*"([0-9A-Fa-f]{64})",?[[:space:]]*$/\1\t\2/p'
+    )
+    [ "$total" -gt 0 ] || { error "Manifesto inválido: nenhum hash encontrado."; return 1; }
+    return 0
+}
+
+verificar_atualizacao_github() {
+    cabecalho_tela "🌐 Atualização pelo GitHub" "Canal estável: branch main"
+    caixa_simples "Consultando" \
+        "Repositório: adriedsonlemoz/TermuxManager" \
+        "Branch: $MANAGER_GITHUB_BRANCH" \
+        "Versão instalada: $MANAGER_VERSION"
+
+    local consulta_rc=0
+    consultar_atualizacao_github || consulta_rc=$?
+    if [ "$consulta_rc" -ne 0 ]; then
+        if [ "$consulta_rc" -eq 2 ]; then
+            caixa_simples "⚠ curl não disponível" "Instale curl e tente novamente."
+        else
+            caixa_simples "⚠ Não foi possível consultar o GitHub" \
+                "Verifique sua conexão com a internet." \
+                "A instalação atual não foi modificada."
+        fi
+        pause
+        return 1
+    fi
+
+    case "$GITHUB_UPDATE_STATE" in
+        same)
+            caixa_simples "✅ Manager atualizado" \
+                "Instalada: $MANAGER_VERSION" \
+                "GitHub main: $GITHUB_REMOTE_VERSION" \
+                "Nenhuma atualização é necessária."
+            pause
+            return 0
+            ;;
+        older)
+            caixa_simples "ℹ A main não é mais nova" \
+                "Instalada: $MANAGER_VERSION" \
+                "GitHub main: $GITHUB_REMOTE_VERSION" \
+                "Nenhuma alteração será aplicada."
+            pause
+            return 0
+            ;;
+        new)
+            caixa_simples "🆕 Nova versão disponível" \
+                "Versão atual: $MANAGER_VERSION" \
+                "Nova versão: $GITHUB_REMOTE_VERSION" \
+                "Fonte: GitHub / branch main" \
+                "Backup automático: ativado"
+            if [ -n "$GITHUB_REMOTE_CHANGELOG" ]; then
+                local -a linhas_changelog=()
+                while IFS= read -r linha; do [ -n "$linha" ] && linhas_changelog+=("$linha"); done <<< "$GITHUB_REMOTE_CHANGELOG"
+                [ ${#linhas_changelog[@]} -gt 0 ] && caixa_simples "O que mudou" "${linhas_changelog[@]}"
+            fi
+            confirmar_acao "Baixar e instalar a versão $GITHUB_REMOTE_VERSION agora?" "n" || return 0
+            ;;
+    esac
+
+    local updates_dir="$BASE_DIR/.updates" stamp download_dir arquivo
+    stamp="$(date '+%Y%m%d_%H%M%S')"
+    download_dir="$updates_dir/github_$stamp"
+    arquivo="$download_dir/TermuxManager-v${GITHUB_REMOTE_VERSION}.zip"
+    mkdir -p "$download_dir"
+
+    cabecalho_tela "⬇ Baixando atualização" "GitHub main → $GITHUB_REMOTE_VERSION"
+    caixa_simples "Download" \
+        "Versão: $GITHUB_REMOTE_VERSION" \
+        "Branch: $MANAGER_GITHUB_BRANCH" \
+        "A instalação atual continua intacta até a validação terminar."
+    if ! curl -fL --retry 3 --connect-timeout 10 --max-time 120 -o "$arquivo" "$MANAGER_GITHUB_ARCHIVE_URL"; then
+        rm -rf "$download_dir"
+        error "Falha ao baixar a atualização do GitHub."
+        pause
+        return 1
+    fi
+
+    ATUALIZACAO_LIMPAR_ARQUIVO=true
+    instalar_pacote_manager "$arquivo"
+    ATUALIZACAO_LIMPAR_ARQUIVO=false
+    rm -rf "$download_dir" 2>/dev/null || true
+}
+
 versao_arquivo_manager() {
     local arquivo="$1" versao=""
     versao=$(grep -m1 -E '^MANAGER_VERSION=' "$arquivo" 2>/dev/null | sed -E 's/^MANAGER_VERSION="?([^"[:space:]]+)"?.*/\1/')
@@ -164,6 +311,11 @@ instalar_pacote_manager() {
         [ ${#raiz[@]} -eq 1 ] && [ -d "${raiz[0]}" ] && pacote="${raiz[0]}"
     fi
     [ -f "$pacote/manager.sh" ] && [ -d "$pacote/modules" ] || { error "Pacote inválido: manager.sh ou modules/ ausente."; rm -rf "$tmp"; pause; return; }
+    if ! validar_manifesto_pacote_manager "$pacote"; then
+        rm -rf "$tmp"
+        pause
+        return 1
+    fi
 
     for modulo in "${MODULOS_OBRIGATORIOS[@]}"; do
         [ -f "$pacote/modules/$modulo" ] || { error "Módulo ausente: $modulo"; faltando=true; }
@@ -313,8 +465,13 @@ instalar_pacote_manager() {
     sleep 0.35
 
     local backup="$updates_dir/manager_backup_$stamp.tar.gz"
+    local -a itens_backup=(manager.sh modules)
+    local item_backup
+    for item_backup in install.sh README.md CHANGELOG.md RELEASE_STANDARD.md MANIFEST.json tools resources config; do
+        [ -e "$BASE_DIR/$item_backup" ] && itens_backup+=("$item_backup")
+    done
     tela_atualizacao_etapa 2 "$total_etapas" "Criando backup de segurança" "Destino: $(basename "$backup")"
-    tar -czf "$backup" -C "$BASE_DIR" manager.sh modules || { error "Falha ao criar backup."; rm -rf "$tmp"; pause; return; }
+    tar -czf "$backup" -C "$BASE_DIR" "${itens_backup[@]}" || { error "Falha ao criar backup."; rm -rf "$tmp"; pause; return; }
     tela_atualizacao_etapa 2 "$total_etapas" "Criando backup de segurança" "Destino: $(basename "$backup")" "concluída"
     sleep 0.35
     local novo_manager="$BASE_DIR/.manager_new_$stamp.sh" novos_modulos="$BASE_DIR/.modules_new_$stamp" antigos_modulos="$BASE_DIR/.modules_old_$stamp"
@@ -341,13 +498,39 @@ instalar_pacote_manager() {
         tar -xzf "$backup" -C "$BASE_DIR" 2>/dev/null || true
         error "Atualização falhou; o backup foi restaurado."; rm -rf "$tmp"; pause; return
     fi
-    tela_atualizacao_etapa 4 "$total_etapas" "Aplicando a atualização" "Núcleo e módulos substituídos." "concluída"
+
+    local auxiliar
+    if ! {
+        for auxiliar in install.sh README.md CHANGELOG.md RELEASE_STANDARD.md MANIFEST.json; do
+            [ -f "$pacote/$auxiliar" ] && cp -f "$pacote/$auxiliar" "$BASE_DIR/$auxiliar"
+        done
+        for auxiliar in tools resources config; do
+            if [ -d "$pacote/$auxiliar" ]; then
+                mkdir -p "$BASE_DIR/$auxiliar"
+                cp -a "$pacote/$auxiliar/." "$BASE_DIR/$auxiliar/"
+            fi
+        done
+        [ -f "$BASE_DIR/install.sh" ] && chmod 700 "$BASE_DIR/install.sh" 2>/dev/null || true
+    }; then
+        tar -xzf "$backup" -C "$BASE_DIR" 2>/dev/null || true
+        error "Falha ao sincronizar arquivos auxiliares; o backup foi restaurado."
+        rm -rf "$tmp"
+        pause
+        return 1
+    fi
+    tela_atualizacao_etapa 4 "$total_etapas" "Aplicando a atualização" "Código, documentação e ferramentas sincronizados." "concluída"
     sleep 0.35
     tela_atualizacao_etapa 5 "$total_etapas" "Finalizando" "Registrando a atualização e preparando o reinício."
     rm -rf "$tmp"
+    if [ "${ATUALIZACAO_LIMPAR_ARQUIVO:-false}" = true ]; then
+        local pasta_download_remota
+        pasta_download_remota="$(dirname "$arquivo")"
+        rm -f -- "$arquivo" 2>/dev/null || true
+        rmdir "$pasta_download_remota" 2>/dev/null || true
+    fi
     cat > "$(arquivo_status_atualizacao)" <<EOF
 DATA="$(date '+%d/%m/%Y %H:%M:%S')"
-TIPO="completa"
+TIPO="${ATUALIZACAO_TIPO:-completa}"
 ARQUIVO="$(basename "$arquivo")"
 VERSAO_ANTERIOR="$MANAGER_VERSION"
 VERSAO_NOVA="$nova_versao"
@@ -453,29 +636,30 @@ EOF
 }
 
 atualizar_manager_local() {
-    if ! check_storage_access; then
-        pause
-        return
-    fi
     while true; do
-        menu_unificado "🔄 Atualizar Manager" "Escolha exatamente o que deseja atualizar" \
-            "[0] Voltar  •  [1–3] Selecionar" \
-            "1|📦|Atualização completa|Usar manager.zip e substituir todo o Manager" \
-            "2|🧩|Atualizar um módulo|Substituir somente um arquivo .sh" \
-            "3|🕘|Ver última atualização|Confirmar data, arquivo e status"
+        menu_unificado "🔄 Atualizar Manager" "GitHub main ou arquivo local"             "[0] Voltar  •  [1–4] Selecionar"             "1|🌐|Verificar no GitHub|Comparar com a branch main e atualizar automaticamente"             "2|📦|Atualizar por ZIP|Usar um pacote completo salvo em Downloads"             "3|🧩|Atualizar um módulo|Substituir somente um arquivo .sh"             "4|🕘|Ver última atualização|Confirmar data, arquivo e status"
         ler_opcao
         case "$RESPOSTA_MENU" in
             1)
-                listar_pacotes_completos
-                selecionar_atualizacao_lista "📦 Atualização completa" "Qualquer .zip válido do Manager no Download" || continue
-                instalar_pacote_manager "$ATUALIZACAO_ESCOLHIDA"
+                ATUALIZACAO_TIPO="github-main"
+                verificar_atualizacao_github
+                ATUALIZACAO_TIPO=""
                 ;;
             2)
+                if ! check_storage_access; then pause; continue; fi
+                ATUALIZACAO_TIPO="completa-local"
+                listar_pacotes_completos
+                selecionar_atualizacao_lista "📦 Atualização completa" "Qualquer .zip válido do Manager no Download" || { ATUALIZACAO_TIPO=""; continue; }
+                instalar_pacote_manager "$ATUALIZACAO_ESCOLHIDA"
+                ATUALIZACAO_TIPO=""
+                ;;
+            3)
+                if ! check_storage_access; then pause; continue; fi
                 listar_modulos_atualizacao
                 selecionar_atualizacao_lista "🧩 Atualizar um módulo" "Procura manager.sh ou arquivos .sh compatíveis" || continue
                 instalar_modulo_manager "$ATUALIZACAO_ESCOLHIDA"
                 ;;
-            3) mostrar_ultima_atualizacao_manager ;;
+            4) mostrar_ultima_atualizacao_manager ;;
             0) return ;;
             *) feedback_curto "Opção inválida." ;;
         esac

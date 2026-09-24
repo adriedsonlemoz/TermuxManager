@@ -247,7 +247,7 @@ menu_manager_hub() {
     while true; do
         menu_unificado "⚙️ MANAGER" "Configuração, atualização e suporte" \
             "[0] Voltar  •  [1–4] Selecionar" \
-            "1|🔄|Atualizar Manager|Pacote completo ou módulo" \
+            "1|🔄|Atualizar Manager|GitHub main ou arquivo local" \
             "2|⚙️|Configurações|Preferências e manutenção" \
             "3|📘|Sobre|Versão, ambiente e desenvolvedor" \
             "4|❓|Ajuda|Instalação, atualização e problemas"

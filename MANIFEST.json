@@ -1,33 +1,33 @@
 {
-  "version": "1.0.75",
+  "version": "1.0.76",
   "developer": "Adriedson Aparecido Lemos",
   "release": {
-    "tag": "v1.0.75",
-    "title": "Manager 1.0.75",
-    "asset": "TermuxManager-v1.0.75.zip",
+    "tag": "v1.0.76",
+    "title": "Manager 1.0.76",
+    "asset": "TermuxManager-v1.0.76.zip",
     "integrity": "MANIFEST.json",
-    "version": "1.0.75"
+    "version": "1.0.76"
   },
   "files": {
     ".updates/.gitkeep": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "CHANGELOG.md": "284e625dad3296ae20d6f4827876c83cec140c1189f92fc64e85d18ab4705f30",
-    "README.md": "0bb5b61248cc361d97e45254dd2eda48c6d9f33346445d26feb399a78c08526f",
-    "RELEASE_STANDARD.md": "322a348800e586df6cac7e410052bcc822179886b1aa96b47cbe0abed5ba515f",
+    "CHANGELOG.md": "96fea13933be5182ee775852075c06296e53f628954e7d2018fc72c0b12fae17",
+    "README.md": "97eef1b7780ced46c399a2ef4c7904263e449237f1389d72d3ad1c899f64e2bf",
+    "RELEASE_STANDARD.md": "a1622339fe490b728d969d147e22b7957905932f872a3e8544e950cd40ab731c",
     "config/.gitkeep": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "install.sh": "c71976fc16c30b24d4ecacb98ab65796755638e859a3cfdae50e43fd981ead26",
-    "manager.sh": "f22a1aba5234790d182dde0c33faa3d2c2fed8a055358f37b1528095f94e678e",
-    "modules/app.sh": "49fd2dc40fe4dff3e3a03b27bfd75bfc3f4f17470304e0b043ea572d3397260f",
+    "manager.sh": "026760668d9ff4b9247cfc76203832e44ddb9abdb7b48112820e47734f656f02",
+    "modules/app.sh": "2884296a452c974d5db4a2f617ac402f04b2621c003f49e50a3b1d2add6db8ab",
     "modules/config.sh": "8139c9a43b5f5dc9cdf754d3fbac3e66dc4ef309e4bdc0ec76df2b86049915e3",
     "modules/core.sh": "17f50edda63d9334bbd3cf58f1c2d5559f1431b5738352dbfe12fd0f5aab6aad",
     "modules/diagnostics.sh": "b07e93b9f63f1e244de65e02cc91a427c5009880b095b8af305df28f2d6423a4",
-    "modules/help.sh": "00b7dce530b91aa2faa9f9f72517d191f7854a17bdd9060ceef37c7a70ed396c",
+    "modules/help.sh": "728eccfca7f632818fb00e9e1e849d9b1f9830491a9824fb8e63a018d2f4432f",
     "modules/import.sh": "0874659392989e1385da4def1140e3fc6342e8051691f10277c6abc7e1910d46",
     "modules/projects.sh": "8f5192b10cd02ac3164180d3f2f93af35e15d06bd3a15627e4109177d5ce978d",
     "modules/runtime.sh": "8d969dedb73a4232f58ef61c53bf381da293339f6a1b6d17ab6ccb32d3963149",
     "modules/settings.sh": "d6d25f640d61e599104079f900cc1892707c3a415f77db7af40e2398842f1b3b",
     "modules/termux.sh": "8501c3b8034b5dbdcc68cb95fd2360619015d200b258742893fd82e174ba61fc",
     "modules/ui.sh": "07fe88b71ab5a87b430a7ea90a6c0b90d2ad7c57e92b501a5264598ecddfe2e0",
-    "modules/updater.sh": "b0bd7c37cb763b8650030ceb92c0be92f88a146034c9276d01452001343de8e3",
+    "modules/updater.sh": "d2e089593c7cf5c46232e69f20b8324c8f739d0bcecbe42703e6a2778a6e41c2",
     "resources/.gitkeep": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "tools/build-release.sh": "1f55e47bc6cee1659de4eba314364ddc97f13a04febba4b860eb6656a5db6469",
     "tools/test-cwd-safety.sh": "677bf48b47ba037b2b64430df4b3a55fb7fb0df0aee2e2d8400ff3e5b08c8515",
@@ -38,6 +38,7 @@
     "tools/test-fast-reimport.sh": "71e9ccab91bba1fe8cbeac777b82a5947dd9bbcc42d5c3f0d324b962b154145c",
     "tools/test-first-run-resume.sh": "2e2b1cd50d84fdf2796d5f0abfc75927f7f76a4f5c64b34ad471dee39174c7fb",
     "tools/test-github-publish.sh": "27f5d6324697f07f0c692f9f0cd3b1e5c164817a7649f024dda7f19f064667bc",
+    "tools/test-github-update.sh": "03692f6769848b15f005a1c225e26e5da3176e0478e817ab653239175fb73141",
     "tools/test-import-destinations.sh": "fd0f2bd71e804897bd8e4778dcafca9089af72598a62c11815144aa649ead77a",
     "tools/test-import-downloads-root.sh": "6fb75a107f81c027783f48ad73784904c11cd75fc9b7ad5442744723dc1701fc",
     "tools/test-import-flatten.sh": "57efc2796d8ad37b5418f7b925d8bb00bf2391135fb9888d66c590590fd4268a",
@@ -58,6 +59,6 @@
     "tools/test-termux-variant.sh": "3dec54cf4be40271ff41d0a8bd10f7afc79b162ee077f100f77f9774a55b142f",
     "tools/test-test-log-bundle.sh": "374c1e3711f1f733424add725cafbedd1dd8ac25a21c18fc63aab8c50db40f1d",
     "tools/test-test-log-rotation.sh": "dacb3b5afc3b4d04e70d97e33319d256aa9c100570425871887485bbaddf59cd",
-    "tools/test-update-restart.sh": "49f71d77c93af0a352ea73ec3fb4ff094c4dbc057113425f71aab72efe3eea63"
+    "tools/test-update-restart.sh": "c16c761a08c0556c8630565221a074e0d33e7beb8b439c0918bbc8ad257b2847"
   }
 }

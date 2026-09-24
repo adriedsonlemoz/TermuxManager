@@ -8,7 +8,7 @@ O projeto usa Versionamento Semântico: `MAJOR.MINOR.PATCH`.
 - **MINOR:** nova funcionalidade compatível;
 - **PATCH:** correção, documentação ou melhoria visual sem quebra de compatibilidade.
 
-Versão atual de referência: `1.0.75`.
+Versão atual de referência: `1.0.76`.
 
 ## Padrão da release
 
@@ -25,10 +25,10 @@ Integridade: MANIFEST.json dentro do pacote
 Para a versão atual:
 
 ```text
-Versão interna: 1.0.75
-Tag: v1.0.75
-Título: Manager 1.0.75
-Pacote único: TermuxManager-v1.0.75.zip
+Versão interna: 1.0.76
+Tag: v1.0.76
+Título: Manager 1.0.76
+Pacote único: TermuxManager-v1.0.76.zip
 Integridade: MANIFEST.json dentro do pacote
 ```
 
@@ -97,3 +97,7 @@ A partir da 1.0.48, releases que alterem `runtime.sh` devem validar pelo menos u
 
 ### Diagnóstico GitHub
 A integração GitHub deve registrar falhas em `~/.termux-manager/logs/github.log` e apresentar ao usuário a etapa que falhou. A preparação local não deve depender da obtenção da identidade remota até ser necessário criar um commit.
+
+## Atualização pelo GitHub
+
+A branch `main` é o canal estável usado pela atualização automática do Manager. Cada alteração publicada na `main` deve incrementar a versão e manter `MANIFEST.json`, README e CHANGELOG sincronizados. O Manager consulta o manifesto remoto, valida os hashes do arquivo baixado e cria backup antes de substituir a instalação atual.
