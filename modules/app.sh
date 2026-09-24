@@ -227,16 +227,18 @@ menu_projetos_hub() {
 menu_ambiente_hub() {
     while true; do
         detectar_variante_termux
-        menu_unificado "🛠️ AMBIENTE" "Termux, ferramentas e diagnóstico" \
-            "[0] Voltar  •  [1–3] Selecionar" \
+        menu_unificado "🛠️ AMBIENTE" "Termux, Linux, ferramentas e diagnóstico" \
+            "[0] Voltar  •  [1–4] Selecionar" \
             "1|🧰|Instalar ferramentas|Pacotes para desenvolvimento" \
             "2|🔧|Ambiente Termux|Atualização, armazenamento e manutenção" \
-            "3|🔎|Diagnóstico rápido|$(termux_origem_resumida) • verificar ambiente"
+            "3|🐧|Linux no celular|Distribuições, PRoot e Termux:X11" \
+            "4|🔎|Diagnóstico rápido|$(termux_origem_resumida) • verificar ambiente"
         ler_opcao
         case "$RESPOSTA_MENU" in
             1) menu_instalar_ferramentas ;;
             2) menu_ambiente_termux ;;
-            3) verificar_ambiente_termux ;;
+            3) menu_linux_celular ;;
+            4) verificar_ambiente_termux ;;
             0) return ;;
             *) warn "Opção inválida."; sleep 1 ;;
         esac

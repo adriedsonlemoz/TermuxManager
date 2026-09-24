@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.0.77] - 2026-09-23
+
+### Adicionado
+- Novo menu **Ambiente → Linux no celular** para instalar e gerenciar distribuições Linux sem root com `proot-distro`.
+- Diagnóstico local de RAM, CPU, arquitetura, Android e espaço livre, com perfis **Básico**, **Intermediário** e **Desktop** e avisos de possível lentidão/travamentos em aparelhos com pouca margem.
+- Listagem dinâmica das distribuições oferecidas pelo `proot-distro`, instalação por alias, início em modo terminal, reset/reinstalação e remoção com confirmação reforçada.
+- Submenu **Termux:X11** com status dos componentes, instalação de `x11-repo` + `termux-x11-nightly`, download do APK Android oficial nightly e abertura do instalador.
+- Instalação automática do desktop **XFCE** para distribuições com `apt`, `pacman` ou `apk`.
+- Inicialização integrada de XFCE via Termux:X11 com `--shared-tmp`, além de encerramento da sessão gráfica e diagnóstico para tela preta, cores trocadas e lentidão.
+- Novo teste `tools/test-linux-manager.sh` cobrindo integração do menu, PRoot, X11, perfil de aparelho e proteções destrutivas.
+
+### Segurança e compatibilidade
+- O Manager usa o APK padrão do Termux:X11 como caminho automático mais compatível; o modo `sharedUid` não é aplicado automaticamente porque depende da origem/assinatura do Termux.
+- Remoção de distro exige confirmação e repetição do alias; reset informa explicitamente que os dados internos serão perdidos.
+- O APK do Termux:X11 é apenas baixado/aberto pelo Manager; a instalação final continua sob confirmação do Android.
+
 ## [1.0.76] - 2026-09-23
 
 ### Adicionado

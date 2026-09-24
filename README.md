@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.76  
+**Versão atual:** 1.0.77  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -42,6 +42,9 @@ Ao executar frontend + backend juntos, o Manager usa um painel único com quatro
 - exportação sanitizada de um erro, log completo ou pacote de suporte;
 - abertura automática do navegador;
 - instalação e inventário de ferramentas do Termux;
+- instalação e gerenciamento de distribuições Linux sem root com `proot-distro`;
+- configuração assistida do Termux:X11 e desktop XFCE;
+- diagnóstico de RAM, CPU e espaço com orientação de desempenho antes de usar Linux gráfico;
 - configuração completa e limpeza segura do Fish Shell;
 - atalhos globais `manager` e `mm`;
 - atualização completa ou de módulo com backup e validação;
@@ -141,7 +144,7 @@ O menu principal foi reduzido a três áreas para evitar uma lista longa de opç
   - 🟢 servidor disponível: PID ativo e porta realmente respondendo;
   - 🟡 processo ativo: PID existe, mas a porta não abriu ou o log indica falha;
   - 🔴 encerrado: PID não existe mais e os metadados são limpos.
-- **Ambiente:** reúne **Instalar ferramentas**, **Ambiente Termux** e **Diagnóstico rápido**.
+- **Ambiente:** reúne **Instalar ferramentas**, **Ambiente Termux**, **Linux no celular** e **Diagnóstico rápido**.
 - **Manager:** reúne **Atualizar Manager**, **Configurações**, **Sobre** e **Ajuda**.
 
 ### Atualização direta pela branch `main`
@@ -162,6 +165,28 @@ Quando existe uma versão mais nova, o Manager:
 Se a consulta falhar ou a integridade do pacote não conferir, a instalação atual permanece intacta. A atualização por ZIP em Downloads continua disponível como alternativa.
 
 Nenhuma função foi removida; apenas as funções relacionadas passaram a ficar agrupadas em submenus.
+
+## Linux no celular
+
+Em **Ambiente → Linux no celular**, o Manager pode preparar uma distribuição Linux sem exigir root. O fluxo usa o `proot-distro` instalado pelo próprio Termux e consulta dinamicamente a lista de distribuições disponíveis, em vez de manter uma lista fixa no código.
+
+O submenu permite:
+
+- analisar RAM, CPU, arquitetura, Android e espaço livre antes da instalação;
+- classificar o aparelho em perfil **Básico**, **Intermediário** ou **Desktop**, sempre como estimativa orientativa;
+- instalar `proot-distro` quando necessário;
+- listar e instalar distribuições disponíveis;
+- iniciar uma distribuição em modo terminal;
+- resetar/reinstalar ou remover uma distribuição com confirmações reforçadas;
+- instalar `x11-repo` e `termux-x11-nightly`;
+- baixar o APK oficial nightly do Termux:X11 para Downloads e abrir o instalador do Android;
+- instalar XFCE automaticamente em distribuições baseadas em `apt`, `pacman` ou `apk`;
+- iniciar o XFCE usando Termux:X11 e `--shared-tmp`;
+- encerrar a sessão X11 e consultar orientações para tela preta, cores trocadas ou lentidão.
+
+O perfil de desempenho é conservador. Em aparelhos com pouca RAM ou pouco armazenamento, o Manager avisa que uma interface gráfica pode apresentar lentidão, encerramentos ou travamentos e recomenda priorizar o modo terminal. O usuário ainda pode continuar se quiser testar.
+
+O Termux:X11 possui duas partes: o pacote companion dentro do Termux e o aplicativo Android. O Manager instala automaticamente a parte do Termux e pode baixar o APK oficial, mas a confirmação final de instalação continua sendo feita pelo Android.
 
 ## Importação de projetos
 
@@ -278,10 +303,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.76
-Tag: v1.0.76
-Release: Manager 1.0.76
-Pacote único: TermuxManager-v1.0.76.zip
+Versão: 1.0.77
+Tag: v1.0.77
+Release: Manager 1.0.77
+Pacote único: TermuxManager-v1.0.77.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 
@@ -331,6 +356,7 @@ Em **Configurações → Manutenção do Manager**:
 │   ├── diagnostics.sh
 │   ├── help.sh
 │   ├── import.sh
+│   ├── linux.sh
 │   ├── projects.sh
 │   ├── runtime.sh
 │   ├── settings.sh
