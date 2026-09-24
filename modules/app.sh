@@ -336,10 +336,20 @@ main() {
     trap finalizar_manager EXIT
     trap 'echo; warn "Operação interrompida fora de uma instalação monitorada."; exit 130' INT
     trap 'echo; warn "Sessão encerrada pelo sistema."; exit 143' TERM
-    check_base_packages
+
+    # Em uma instalação nova, o assistente precisa sincronizar os repositórios
+    # antes de qualquer tentativa de instalar dependências. O fluxo anterior
+    # chamava check_base_packages cedo demais, quando o apt-cache ainda podia
+    # estar vazio. Em instalações já concluídas, mantemos a checagem imediata.
+    if [ -f "$FIRST_RUN_FILE" ]; then
+        check_base_packages
+    fi
     rotacionar_log "$LOG_FILE"
     log "INFO" "===== manager.sh v$MANAGER_VERSION iniciado ====="
     assistente_primeira_execucao
+    if [ -f "$FIRST_RUN_FILE" ]; then
+        check_base_packages
+    fi
     mostrar_confirmacao_pos_atualizacao
     [ "$DIAGNOSTICO_NA_ABERTURA" = true ] && verificar_ambiente_termux
     # Garante uma transição limpa mesmo se o assistente ou o apt tiverem

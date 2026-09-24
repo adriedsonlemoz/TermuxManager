@@ -165,14 +165,34 @@ assistente_primeira_execucao() {
         first_run_mark_stage update
     fi
 
-    # Etapa 3 — cada pacote já instalado é detectado automaticamente. Ctrl+C
-    # abre opções dentro da etapa e não encerra o Manager.
+    # Etapa 3 — cada pacote já instalado é detectado automaticamente. Inclui
+    # também as dependências mínimas do próprio Manager para que a primeira
+    # configuração termine com um ambiente realmente utilizável. Ctrl+C abre
+    # opções dentro da etapa e não encerra o Manager.
     if ! first_run_stage_done tools; then
-        local ferramentas_rc=0
-        if instalar_lista_pacotes "Ferramentas recomendadas" nano micro fish git curl wget zip unzip jq; then
+        local ferramentas_rc=0 pacote_inicial
+        local -a pacotes_iniciais=(
+            coreutils grep sed gawk findutils
+            nano micro fish git curl wget zip unzip jq
+        )
+        if instalar_lista_pacotes "Ferramentas recomendadas" "${pacotes_iniciais[@]}"; then
             ferramentas_rc=0
         else
             ferramentas_rc=$?
+        fi
+
+        # Só considera a etapa concluída se os pacotes realmente estiverem
+        # presentes. Antes, um apt-cache vazio podia classificar tudo como
+        # indisponível, retornar sucesso e gravar tools=done sem baixar nada.
+        if [ "$ferramentas_rc" -eq 0 ]; then
+            local -a pacotes_pendentes=()
+            for pacote_inicial in "${pacotes_iniciais[@]}"; do
+                pacote_instalado_ou_funcional "$pacote_inicial" || pacotes_pendentes+=("$pacote_inicial")
+            done
+            if [ "${#pacotes_pendentes[@]}" -gt 0 ]; then
+                ferramentas_rc=1
+                log "ERROR" "Wizard: pacotes iniciais ainda ausentes após instalação: ${pacotes_pendentes[*]}"
+            fi
         fi
         if [ "$ferramentas_rc" -eq 130 ]; then
             WIZARD_MODE=false

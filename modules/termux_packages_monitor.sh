@@ -205,7 +205,15 @@ executar_pkg_monitorado() {
     local -a comando_exec=()
     case "${args[0]:-}" in
         update)
-            comando_exec=(apt-get "${apt_opcoes[@]}" update)
+            # Na primeira execução, antes de existir qualquer índice APT, use o
+            # wrapper `pkg`. Ele conhece o bootstrap próprio do Termux e pode
+            # encaminhar seleção/configuração inicial de mirror. Depois que os
+            # índices existem, voltamos ao apt-get com retries/timeouts.
+            if ! indices_apt_inicializados && command -v pkg >/dev/null 2>&1; then
+                comando_exec=(pkg update -y)
+            else
+                comando_exec=(apt-get "${apt_opcoes[@]}" update)
+            fi
             ;;
         upgrade)
             comando_exec=(env DEBIAN_FRONTEND=noninteractive apt-get "${apt_opcoes[@]}" upgrade -y

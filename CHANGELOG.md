@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.0.104] - 2026-09-24
+
+### Corrigido
+- O fluxo de primeira instalação não trata mais um `apt-cache` vazio como prova de que os pacotes não existem. Em um Termux novo, pacotes sem índice local agora são considerados candidatos à instalação até que os repositórios tenham sido sincronizados.
+- O instalador oficial passa a executar a primeira sincronização dos repositórios antes de tentar instalar `curl`, `unzip` ou `coreutils` quando os índices APT ainda não existem.
+- Chamadas de `pkg` feitas pelo `install.sh` usam entrada isolada (`/dev/null`), evitando que uma etapa de pacote consuma acidentalmente o restante do próprio script quando a instalação é iniciada por `curl ... | bash`.
+- Se a primeira sincronização falhar e o seletor oficial estiver disponível, o instalador abre `termux-change-repo` no TTY real e tenta a sincronização novamente.
+- A primeira sincronização monitorada do Manager usa o wrapper `pkg` enquanto os índices ainda não existem; depois do bootstrap, as atualizações voltam ao `apt-get` monitorado com retries e timeouts.
+- O assistente de primeira execução só grava a etapa de ferramentas como concluída depois de confirmar que todos os pacotes iniciais realmente ficaram instalados/funcionais.
+- A checagem de componentes básicos deixou de acontecer antes da atualização inicial dos repositórios em uma instalação nova.
+- A detecção de repositórios do próprio `install.sh` agora também reconhece linhas APT com opções (`deb [opções] URL ...`) e múltiplos repositórios sem corromper o repositório primário.
+
+### Primeira configuração
+- O conjunto inicial agora inclui explicitamente as dependências básicas do Manager (`coreutils`, `grep`, `sed`, `gawk`, `findutils`) junto de `nano`, `micro`, `fish`, `git`, `curl`, `wget`, `zip`, `unzip` e `jq`. Pacotes já presentes continuam sendo ignorados automaticamente.
+
+### Testes
+- Adicionado `test-first-install-packages.sh`, cobrindo cache APT vazio, seleção do bootstrap via `pkg`, verificação dos pacotes iniciais e proteções do instalador.
+- A suíte passa de **43 para 44 testes**.
+
 ## [1.0.103] - 2026-09-24
 
 ### Refatorado

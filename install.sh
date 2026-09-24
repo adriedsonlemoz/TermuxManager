@@ -23,7 +23,6 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 command -v pkg >/dev/null 2>&1 || fail "Este instalador deve ser executado dentro do Termux."
-command -v curl >/dev/null 2>&1 || fail "curl não foi encontrado. Execute 'pkg install curl' e tente novamente."
 
 TERMUX_VARIANT_ID=""
 TERMUX_VARIANT_LABEL=""
@@ -38,14 +37,15 @@ coletar_repositorios_termux() {
         [ -r "$arquivo" ] && fontes+=("$arquivo")
     done
     [ ${#fontes[@]} -gt 0 ] || return 0
-    awk '/^[[:space:]]*deb[[:space:]]+https?:\/\// {print $2}' "${fontes[@]}" 2>/dev/null | awk '!seen[$0]++'
+    awk '$1 == "deb" { for (i=2; i<=NF; i++) if ($i ~ /^https?:\/\//) { print $i; break } }' \
+        "${fontes[@]}" 2>/dev/null | awk '!seen[$0]++'
 }
 
 detectar_variante_termux() {
     [ -n "${TERMUX_VARIANT_LABEL:-}" ] && return 0
     local versao="${TERMUX_VERSION:-}" repos=""
-    repos="$(coletar_repositorios_termux | paste -sd ', ' - 2>/dev/null || true)"
-    TERMUX_REPO_PRIMARY="$(printf '%s' "$repos" | awk -F', ' 'NF{print $1; exit}')"
+    repos="$(coletar_repositorios_termux | awk 'BEGIN { sep="" } { printf "%s%s", sep, $0; sep=", " } END { if (sep != "") print "" }' 2>/dev/null || true)"
+    TERMUX_REPO_PRIMARY="$(coletar_repositorios_termux | head -n 1 2>/dev/null || true)"
     [ -n "$TERMUX_REPO_PRIMARY" ] || TERMUX_REPO_PRIMARY="indisponível"
     TERMUX_VARIANT_ID="unknown"
     TERMUX_VARIANT_LABEL="Origem não identificada"
@@ -81,6 +81,27 @@ pids_pkg_ativos() {
                 ;;
         esac
     done
+}
+
+indices_apt_inicializados_installer() {
+    local listas="${PREFIX:-}/var/lib/apt/lists" arquivo nome
+    [ -n "${PREFIX:-}" ] || return 1
+    [ -d "$listas" ] || return 1
+    for arquivo in "$listas"/*; do
+        [ -f "$arquivo" ] && [ -s "$arquivo" ] || continue
+        nome="${arquivo##*/}"
+        case "$nome" in
+            lock) continue ;;
+            *Packages*|*InRelease*|*Release*) return 0 ;;
+        esac
+    done
+    return 1
+}
+
+executar_pkg_instalador() {
+    # O instalador costuma ser iniciado por `curl ... | bash`. Nunca permita
+    # que pkg/apt leia o pipe do próprio script como entrada interativa.
+    pkg "$@" </dev/null
 }
 
 aguardar_pkg_livre() {
@@ -147,13 +168,35 @@ mkdir -p "$TMP_BASE"
 TMP_DIR="$(mktemp -d "$TMP_BASE/termux-manager-install.XXXXXX")" || fail "Não foi possível criar a pasta temporária."
 
 necessarios=()
+command -v curl >/dev/null 2>&1 || necessarios+=(curl)
 command -v unzip >/dev/null 2>&1 || necessarios+=(unzip)
 command -v sha256sum >/dev/null 2>&1 || necessarios+=(coreutils)
 if [ ${#necessarios[@]} -gt 0 ]; then
     aguardar_pkg_livre
-    info "Preparando ferramentas necessárias: ${necessarios[*]}"
     pkg_log="$TMP_DIR/pkg-install.log"
-    if ! pkg install -y "${necessarios[@]}" >"$pkg_log" 2>&1; then
+
+    # Em um Termux recém-instalado os índices podem ainda não existir. Tentar
+    # instalar unzip/coreutils diretamente nesse estado falha antes mesmo de o
+    # Manager conseguir abrir o assistente. Sincronize o índice primeiro.
+    if ! indices_apt_inicializados_installer; then
+        info "Sincronizando repositórios do Termux pela primeira vez"
+        if ! executar_pkg_instalador update -y >"$pkg_log" 2>&1; then
+            if command -v termux-change-repo >/dev/null 2>&1 && [ -r /dev/tty ]; then
+                printf '%s\n' "⚠ O repositório inicial precisa ser escolhido/corrigido. Abrindo o seletor oficial do Termux."
+                termux-change-repo </dev/tty >/dev/tty 2>&1 || true
+                executar_pkg_instalador update -y >"$pkg_log" 2>&1 || {
+                    tail -n 12 "$pkg_log" >&2 2>/dev/null || true
+                    fail "Não foi possível sincronizar os repositórios do Termux."
+                }
+            else
+                tail -n 12 "$pkg_log" >&2 2>/dev/null || true
+                fail "Não foi possível sincronizar os repositórios do Termux."
+            fi
+        fi
+    fi
+
+    info "Preparando ferramentas necessárias: ${necessarios[*]}"
+    if ! executar_pkg_instalador install -y "${necessarios[@]}" >"$pkg_log" 2>&1; then
         printf '%s\n' "Últimas mensagens do pkg:" >&2
         tail -n 12 "$pkg_log" >&2 2>/dev/null || true
         fail "Não foi possível instalar as ferramentas necessárias."

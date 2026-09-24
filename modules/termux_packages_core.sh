@@ -74,9 +74,32 @@ termux_repositorio_resumido() {
     printf '%s' "${TERMUX_REPO_PRIMARY:-indisponível}"
 }
 
+indices_apt_inicializados() {
+    local listas="${PREFIX:-}/var/lib/apt/lists" arquivo nome
+    [ -n "${PREFIX:-}" ] || return 1
+    [ -d "$listas" ] || return 1
+
+    # Em uma instalação nova o diretório pode existir contendo apenas lock/partial.
+    # Nessa situação o apt-cache ainda não consegue responder se um pacote existe.
+    for arquivo in "$listas"/*; do
+        [ -f "$arquivo" ] && [ -s "$arquivo" ] || continue
+        nome="${arquivo##*/}"
+        case "$nome" in
+            lock) continue ;;
+            *Packages*|*InRelease*|*Release*) return 0 ;;
+        esac
+    done
+    return 1
+}
+
 pacote_disponivel_termux() {
     local pacote="$1"
     command -v apt-cache >/dev/null 2>&1 || return 0
+
+    # Cache vazio não significa pacote inexistente. Na primeira execução,
+    # classificar esse estado como "indisponível" fazia o assistente pular
+    # justamente os pacotes iniciais e marcar a etapa como concluída.
+    indices_apt_inicializados || return 0
     apt-cache show "$pacote" 2>/dev/null | grep -q '^Package:[[:space:]]'
 }
 
