@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.84] - 2026-09-24
+
+### Melhorado
+- O diagnóstico das distribuições Linux agora explica **por que** uma distro foi marcada com problema, com códigos e mensagens específicas para arquitetura divergente, `Exec format error`, QEMU ausente, `/bin/sh` ausente/quebrado, loader ELF ausente, permissões, timeout e falhas do PRoot.
+- **Meus Linux** passou a mostrar uma causa curta no lugar do rótulo genérico “Problema”, como `Arquitetura`, `QEMU`, `Loader ausente` ou `Timeout`.
+- O painel individual da distro ganhou a opção **Diagnóstico**, com arquitetura do Termux, arquitetura registrada, arquitetura real do `/bin/sh`, loader, QEMU e último erro.
+- Ao tentar iniciar uma distro com problema, o Manager oferece **Ver diagnóstico**, **Testar novamente** ou **Reparar / reinstalar** antes de bloquear a sessão.
+- Descrições de opções de menu agora são resumidas automaticamente em palavra completa para evitar textos cortados de forma estranha em telas estreitas.
+- Vários textos explicativos dos menus de Linux, atualização, configurações, ambiente e ferramentas foram encurtados.
+
+### Corrigido
+- O cache de saúde das distros agora preserva o código, motivo e detalhe do erro; caches antigos sem diagnóstico são reavaliados automaticamente.
+
 ## [1.0.83] - 2026-09-23
 
 ### Adicionado

@@ -59,6 +59,12 @@ grep -Fq 'Exec format error' "$LINUX"
 grep -Fq 'Meus Linux' "$LINUX"
 grep -Fq 'Atualizar sistema' "$LINUX"
 grep -Fq 'Criar backup' "$LINUX"
+grep -Fq 'linux_exibir_diagnostico_distro()' "$LINUX"
+grep -Fq 'ARCH_MISMATCH' "$LINUX"
+grep -Fq 'QEMU_REQUIRED' "$LINUX"
+grep -Fq 'LOADER_MISSING' "$LINUX"
+grep -Fq 'linux_rotulo_curto_saude()' "$LINUX"
+grep -Fq 'Testar novamente' "$LINUX"
 
 # Referências OCI atuais podem conter tag (:) e caminho (/).
 (
@@ -233,4 +239,43 @@ EOF
     [ "$LINUX_INFO_SIZE_KB" -gt 0 ]
 )
 
-echo "OK: Linux no celular integra Meus Linux, identificação detalhada, saúde, tamanho, backup, atualização, PRoot, X11 e múltiplos desktops."
+
+# Simula uma falha Exec format para confirmar que a causa fica explicada.
+(
+    set -u
+    TMPROOT="/tmp/painel-test-linux-diag-$$"
+    trap 'rm -rf "$TMPROOT"' EXIT
+    PAINEL_DIR="$TMPROOT/painel"
+    LOG_DIR="$PAINEL_DIR/.logs"
+    HOME="$TMPROOT/home"
+    PREFIX="$TMPROOT/prefix"
+    TMPDIR="$TMPROOT/tmp"
+    root="$PREFIX/var/lib/proot-distro/containers/alpine/rootfs"
+    mkdir -p "$root/bin" "$TMPDIR"
+    printf '#!/bin/sh\n' > "$root/bin/sh"
+    chmod +x "$root/bin/sh"
+    cat > "$PREFIX/var/lib/proot-distro/containers/alpine/manifest.json" <<'EOF'
+{
+  "image_ref": "alpine:3.23",
+  "arch": "arm"
+}
+EOF
+    source "$LINUX"
+    linux_arquitetura() { printf 'arm\n'; }
+    linux_arquitetura_binario() { printf 'arm\n'; }
+    linux_loader_binario() { return 1; }
+    proot-distro() {
+        if [ "${1:-}" = login ]; then
+            printf 'proot error: execve("/bin/sh"): Exec format error\n' >&2
+            printf 'proot info: the program is a foreign binary but qemu was not specified\n' >&2
+            return 1
+        fi
+        return 0
+    }
+    linux_testar_saude_distro alpine true
+    [ "$LINUX_INFO_HEALTH" = problem ]
+    [ "$LINUX_DIAG_CODE" = EXEC_FORMAT ]
+    [ "$LINUX_DIAG_REASON" = 'Formato incompatível' ]
+)
+
+echo "OK: Linux no celular integra diagnóstico explicativo, Meus Linux, tamanho, backup, atualização, PRoot, X11 e múltiplos desktops."

@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.83  
+**Versão atual:** 1.0.84  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -174,13 +174,17 @@ Durante a consulta ao GitHub, o Manager agora mantém uma tela de atividade vis�
 
 Nenhuma função foi removida; apenas as funções relacionadas passaram a ficar agrupadas em submenus.
 
+As descrições exibidas abaixo das opções de menu são resumidas automaticamente para telas móveis. Quando precisam ser reduzidas, o corte procura terminar em uma palavra completa para evitar textos quebrados no meio.
+
 ## Linux no celular
 
 A interface de Linux prioriza uso leigo: distribuições instaladas são detectadas automaticamente e todas as ações principais usam **seleção numerada**, sem exigir que o usuário memorize aliases. A instalação oferece Ubuntu 24.04, Debian 12, Alpine, Fedora, openSUSE e Rocky Linux como atalhos, além de pesquisa opcional no Docker Hub. Referências OCI com versão, como `ubuntu:24.04`, são aceitas corretamente.
 
 A área **Meus Linux** centraliza as distribuições já instaladas. A lista mostra nome do sistema, estado da sessão, saúde, arquitetura, tamanho atual e desktops detectados. Ao selecionar uma distro, o Manager abre um painel próprio com **Iniciar terminal**, **Desktop/X11**, **Atualizar sistema**, **Criar backup**, **Informações completas**, **Encerrar sessões**, **Reparar/reinstalar** e **Remover**.
 
-O tamanho do rootfs é medido localmente e fica em cache curto para evitar percorrer milhares de arquivos a cada abertura do menu. A saúde também é testada com `/bin/sh`; distribuições que falham ao iniciar aparecem como **Problema** em vez de serem tratadas como normais.
+O tamanho do rootfs é medido localmente e fica em cache curto para evitar percorrer milhares de arquivos a cada abertura do menu. A saúde também é testada com `/bin/sh`. Quando o teste falha, o Manager mostra uma causa curta na lista — por exemplo **Arquitetura**, **QEMU**, **Loader ausente** ou **Timeout** — e oferece um diagnóstico completo com código, arquitetura registrada, arquitetura real do shell, loader e último erro.
+
+O cache de saúde guarda também o motivo da falha. Caches antigos que só sabiam “Problema” são reavaliados automaticamente para produzir um diagnóstico explicativo. Na tentativa de iniciar uma distro com falha, o usuário pode **Ver diagnóstico**, **Testar novamente** ou **Reparar/reinstalar**.
 
 Quando nenhuma distribuição estiver instalada, **Meus Linux** oferece abrir a instalação imediatamente, em vez de pedir um alias inexistente.
 
@@ -334,10 +338,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.83
-Tag: v1.0.83
-Release: Manager 1.0.83
-Pacote único: TermuxManager-v1.0.83.zip
+Versão: 1.0.84
+Tag: v1.0.84
+Release: Manager 1.0.84
+Pacote único: TermuxManager-v1.0.84.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

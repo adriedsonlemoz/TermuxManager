@@ -773,7 +773,7 @@ EOF
 
 atualizar_manager_local() {
     while true; do
-        menu_unificado "🔄 Atualizar Manager" "GitHub main ou arquivo local"             "[0] Voltar  •  [1–4] Selecionar"             "1|🌐|Verificar no GitHub|Comparar com a branch main e atualizar automaticamente"             "2|📦|Atualizar por ZIP|Usar um pacote completo salvo em Downloads"             "3|🧩|Atualizar um módulo|Substituir somente um arquivo .sh"             "4|🕘|Ver última atualização|Confirmar data, arquivo e status"
+        menu_unificado "🔄 Atualizar Manager" "GitHub main ou arquivo local"             "[0] Voltar  •  [1–4] Selecionar"             "1|🌐|Verificar no GitHub|Comparar com a main"             "2|📦|Atualizar por ZIP|Pacote salvo em Downloads"             "3|🧩|Atualizar um módulo|Substituir um arquivo .sh"             "4|🕘|Ver última atualização|Data, arquivo e status"
         ler_opcao
         case "$RESPOSTA_MENU" in
             1)

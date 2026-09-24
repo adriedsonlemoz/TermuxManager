@@ -1174,7 +1174,7 @@ menu_java() {
 menu_instalar_ferramentas() {
     while true; do
         menu_unificado "🧰 Instalar ferramentas" "Pacotes para desenvolvimento" "[0] Voltar  •  [1–9/A] Selecionar" \
-            "1|📋|Ferramentas instaladas|Mostrar somente o que já existe no Termux" \
+            "1|📋|Ferramentas instaladas|Listar pacotes detectados" \
             "2|🌐|Web|Node.js, Git, curl e utilitários" \
             "3|☕|Java|OpenJDK, Gradle e Maven" \
             "4|🐍|Python|Python e ferramentas de compilação" \
@@ -1252,7 +1252,7 @@ tela_conclusao_primeira_execucao() {
     pause
 
     while true; do
-        menu_unificado "🔄 Aplicar alterações"             "Reinício do shell recomendado"             "[1] Reiniciar agora  •  [2] Continuar  •  [0] Sair"             "1|🔄|Reiniciar o shell agora|Recomendado para aplicar todas as alterações"             "2|▶️|Continuar para o Manager|Algumas mudanças serão aplicadas na próxima sessão"             "0|🚪|Sair sem reiniciar|Voltar ao terminal atual"
+        menu_unificado "🔄 Aplicar alterações"             "Reinício do shell recomendado"             "[1] Reiniciar agora  •  [2] Continuar  •  [0] Sair"             "1|🔄|Reiniciar o shell agora|Aplicar todas as alterações"             "2|▶️|Continuar para o Manager|Aplicar depois"             "0|🚪|Sair sem reiniciar|Voltar ao terminal atual"
         ler_opcao
         case "$RESPOSTA_MENU" in
             1)

@@ -344,12 +344,40 @@ cabecalho_tela() {
     echo
 }
 
+resumir_descricao_menu() {
+    # Mantém descrições de menu curtas e encerra em palavra completa.
+    # Isso evita linhas cortadas de forma estranha em telas estreitas.
+    local texto="${1:-}" largura limite cortado base candidato
+    [ -n "$texto" ] || return 0
+    largura="$(largura_caixa_atual)"
+    limite=$((largura - 8))
+    [ "$limite" -gt 48 ] && limite=48
+    [ "$limite" -lt 18 ] && limite=18
+    texto="$(strip_ansi "$texto")"
+    if [ "$(largura_visivel "$texto")" -le "$limite" ]; then
+        printf '%s' "$texto"
+        return 0
+    fi
+    cortado="$(truncar_visivel "$texto" "$limite")"
+    base="${cortado%…}"
+    if [[ "$base" == *" "* ]]; then
+        candidato="${base% *}"
+        if [ "$(largura_visivel "$candidato")" -ge 12 ]; then
+            base="$candidato"
+        fi
+    fi
+    printf '%s…' "${base% }"
+}
+
 menu_opcao() {
     # menu_opcao <numero> <icone> <titulo> <descricao>
     local numero="$1" icone="$2" titulo="$3" descricao="${4:-}"
     [ "$ICONES_ATIVADOS" = true ] || icone=""
     caixa_linha_texto "${C_BOLD}${numero}) ${icone:+$icone }${titulo}${C_RESET}"
-    [ "$DESCRICOES_ATIVADAS" = true ] && [ -n "$descricao" ] && caixa_linha_texto "   ${C_DIM}${descricao}${C_RESET}"
+    if [ "$DESCRICOES_ATIVADAS" = true ] && [ -n "$descricao" ]; then
+        descricao="$(resumir_descricao_menu "$descricao")"
+        caixa_linha_texto "   ${C_DIM}${descricao}${C_RESET}"
+    fi
 }
 
 menu_unificado() {

@@ -392,38 +392,321 @@ linux_invalidar_cache_distro() {
     rm -f "$cache" "$(linux_cache_tamanho_arquivo "$alias")" 2>/dev/null || true
 }
 
-linux_testar_saude_distro() {
-    local alias="${1:-}" forcar="${2:-false}" cache agora salvo_ts salvo_status rc=0 saida="" errfile
-    cache="$(linux_cache_info_arquivo "$alias")"
-    agora="$(date +%s 2>/dev/null || printf '0')"
-    if [ "$forcar" != "true" ] && [ -f "$cache" ]; then
-        IFS='|' read -r salvo_ts salvo_status < "$cache" || true
-        if [[ "$agora" =~ ^[0-9]+$ ]] && [[ "${salvo_ts:-}" =~ ^[0-9]+$ ]] && \
-           [ $((agora - salvo_ts)) -ge 0 ] && [ $((agora - salvo_ts)) -lt "$LINUX_INFO_CACHE_TTL" ]; then
-            LINUX_INFO_HEALTH="${salvo_status:-unknown}"
-            return 0
+linux_diag_linha_unica() {
+    printf '%s' "${1:-}" | tr '\r\n|' '   ' | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//'
+}
+
+linux_resolver_bin_sh() {
+    local alias="${1:-}" root caminho alvo n=0
+    LINUX_DIAG_ROOTFS=""
+    LINUX_DIAG_SHELL_PATH=""
+    LINUX_DIAG_SHELL_TARGET=""
+    root="$(linux_container_rootfs "$alias" 2>/dev/null || true)"
+    LINUX_DIAG_ROOTFS="$root"
+    [ -n "$root" ] || return 1
+    caminho="$root/bin/sh"
+    LINUX_DIAG_SHELL_PATH="$caminho"
+    [ -e "$caminho" ] || [ -L "$caminho" ] || return 2
+    while [ -L "$caminho" ] && [ "$n" -lt 8 ]; do
+        alvo="$(readlink "$caminho" 2>/dev/null || true)"
+        [ -n "$alvo" ] || break
+        if [[ "$alvo" = /* ]]; then
+            caminho="$root$alvo"
+        else
+            caminho="$(dirname "$caminho")/$alvo"
+        fi
+        n=$((n + 1))
+    done
+    LINUX_DIAG_SHELL_TARGET="$caminho"
+    [ -e "$caminho" ] || return 3
+    return 0
+}
+
+linux_arquitetura_binario() {
+    local arquivo="${1:-}" desc endian bytes b1 b2 machine
+    [ -f "$arquivo" ] || return 1
+    if command -v file >/dev/null 2>&1; then
+        desc="$(file -Lb "$arquivo" 2>/dev/null || true)"
+        case "$desc" in
+            *aarch64*|*AArch64*|*ARM64*) printf 'aarch64\n'; return 0 ;;
+            *x86-64*|*x86_64*) printf 'x86_64\n'; return 0 ;;
+            *80386*|*i386*) printf 'i686\n'; return 0 ;;
+            *RISC-V*|*riscv64*) printf 'riscv64\n'; return 0 ;;
+            *ARM*) printf 'arm\n'; return 0 ;;
+            *script*|*text*) printf 'script\n'; return 0 ;;
+        esac
+    fi
+    # Fallback mínimo: lê e_machine diretamente do cabeçalho ELF.
+    bytes="$(dd if="$arquivo" bs=1 skip=18 count=2 2>/dev/null | od -An -t u1 2>/dev/null || true)"
+    read -r b1 b2 <<< "$bytes"
+    [[ "${b1:-}" =~ ^[0-9]+$ ]] && [[ "${b2:-}" =~ ^[0-9]+$ ]] || return 1
+    endian="$(dd if="$arquivo" bs=1 skip=5 count=1 2>/dev/null | od -An -t u1 2>/dev/null | tr -d ' ')"
+    if [ "$endian" = "2" ]; then machine=$((b1 * 256 + b2)); else machine=$((b1 + b2 * 256)); fi
+    case "$machine" in
+        183) printf 'aarch64\n' ;;
+        40) printf 'arm\n' ;;
+        62) printf 'x86_64\n' ;;
+        3) printf 'i686\n' ;;
+        243) printf 'riscv64\n' ;;
+        *) printf 'desconhecida\n' ;;
+    esac
+}
+
+linux_loader_binario() {
+    local arquivo="${1:-}" desc loader
+    [ -f "$arquivo" ] || return 1
+    command -v file >/dev/null 2>&1 || return 1
+    desc="$(file -Lb "$arquivo" 2>/dev/null || true)"
+    loader="$(printf '%s\n' "$desc" | sed -nE 's/.*interpreter ([^, ]+).*/\1/p' | head -n1)"
+    [ -n "$loader" ] || return 1
+    printf '%s\n' "$loader"
+}
+
+linux_qemu_disponivel_para() {
+    case "${1:-}" in
+        aarch64) command -v qemu-aarch64 >/dev/null 2>&1 || command -v qemu-aarch64-static >/dev/null 2>&1 ;;
+        arm) command -v qemu-arm >/dev/null 2>&1 || command -v qemu-arm-static >/dev/null 2>&1 ;;
+        x86_64) command -v qemu-x86_64 >/dev/null 2>&1 || command -v qemu-x86_64-static >/dev/null 2>&1 ;;
+        i686) command -v qemu-i386 >/dev/null 2>&1 || command -v qemu-i386-static >/dev/null 2>&1 ;;
+        riscv64) command -v qemu-riscv64 >/dev/null 2>&1 || command -v qemu-riscv64-static >/dev/null 2>&1 ;;
+        *) return 1 ;;
+    esac
+}
+
+linux_preparar_diagnostico_local() {
+    local alias="${1:-}" rc=0 loader="" host manifest shell_arch="desconhecida"
+    LINUX_DIAG_CODE=""
+    LINUX_DIAG_REASON=""
+    LINUX_DIAG_DETAIL=""
+    LINUX_DIAG_ERROR=""
+    LINUX_DIAG_HOST_ARCH="$(linux_proot_arquitetura_dispositivo "$(linux_arquitetura)" 2>/dev/null || linux_arquitetura)"
+    LINUX_DIAG_MANIFEST_ARCH="$(linux_manifest_campo "$alias" arch 2>/dev/null || true)"
+    LINUX_DIAG_SHELL_ARCH="desconhecida"
+    LINUX_DIAG_LOADER=""
+    LINUX_DIAG_LOADER_STATUS="não identificado"
+    LINUX_DIAG_QEMU="não necessário"
+
+    linux_resolver_bin_sh "$alias" || rc=$?
+    case "$rc" in
+        1)
+            LINUX_DIAG_CODE="ROOTFS_MISSING"
+            LINUX_DIAG_REASON="Rootfs ausente"
+            LINUX_DIAG_DETAIL="A pasta principal da distribuição não foi encontrada."
+            return 1
+            ;;
+        2)
+            LINUX_DIAG_CODE="SHELL_MISSING"
+            LINUX_DIAG_REASON="Shell ausente"
+            LINUX_DIAG_DETAIL="O arquivo /bin/sh não existe dentro da distribuição."
+            return 1
+            ;;
+        3)
+            LINUX_DIAG_CODE="SHELL_TARGET_MISSING"
+            LINUX_DIAG_REASON="Shell quebrado"
+            LINUX_DIAG_DETAIL="O link /bin/sh aponta para um arquivo que não existe."
+            return 1
+            ;;
+    esac
+
+    shell_arch="$(linux_arquitetura_binario "$LINUX_DIAG_SHELL_TARGET" 2>/dev/null || printf 'desconhecida')"
+    LINUX_DIAG_SHELL_ARCH="$shell_arch"
+    loader="$(linux_loader_binario "$LINUX_DIAG_SHELL_TARGET" 2>/dev/null || true)"
+    LINUX_DIAG_LOADER="$loader"
+    if [ -n "$loader" ]; then
+        if [ -e "$LINUX_DIAG_ROOTFS$loader" ]; then
+            LINUX_DIAG_LOADER_STATUS="presente"
+        else
+            LINUX_DIAG_LOADER_STATUS="ausente"
+            LINUX_DIAG_CODE="LOADER_MISSING"
+            LINUX_DIAG_REASON="Loader ausente"
+            LINUX_DIAG_DETAIL="O interpretador ELF '$loader' não existe no rootfs."
+            return 1
         fi
     fi
 
+    host="$LINUX_DIAG_HOST_ARCH"
+    manifest="$LINUX_DIAG_MANIFEST_ARCH"
+    if [ -n "$manifest" ] && [ "$shell_arch" != "desconhecida" ] && [ "$shell_arch" != "script" ] && [ "$manifest" != "$shell_arch" ]; then
+        LINUX_DIAG_CODE="ARCH_MISMATCH"
+        LINUX_DIAG_REASON="Arquitetura divergente"
+        LINUX_DIAG_DETAIL="Manifesto: $manifest; /bin/sh: $shell_arch."
+        return 1
+    fi
+    if [ "$shell_arch" != "desconhecida" ] && [ "$shell_arch" != "script" ] && [ -n "$host" ] && [ "$shell_arch" != "$host" ]; then
+        if linux_qemu_disponivel_para "$shell_arch"; then
+            LINUX_DIAG_QEMU="disponível"
+        else
+            LINUX_DIAG_QEMU="não detectado"
+        fi
+    fi
+    return 0
+}
+
+linux_classificar_falha_saude() {
+    local rc="${1:-1}" erro="${2:-}" host="${LINUX_DIAG_HOST_ARCH:-}" guest="${LINUX_DIAG_SHELL_ARCH:-}"
+    # Diagnósticos estruturais encontrados antes da execução têm prioridade.
+    if [ -n "${LINUX_DIAG_CODE:-}" ]; then
+        return 0
+    fi
+    if [ "$rc" = "124" ]; then
+        LINUX_DIAG_CODE="TIMEOUT"
+        LINUX_DIAG_REASON="Inicialização demorou"
+        LINUX_DIAG_DETAIL="O teste não respondeu dentro do limite de segurança."
+    elif [[ "$erro" == *"Exec format error"* ]]; then
+        # A mensagem do PRoot lista QEMU entre causas possíveis mesmo quando
+        # ele não é a causa real. Só marcamos QEMU quando há arquitetura
+        # estrangeira confirmada; caso contrário usamos o diagnóstico neutro.
+        if [ -n "$guest" ] && [ "$guest" != "desconhecida" ] && [ "$guest" != "script" ] && \
+           [ -n "$host" ] && [ "$guest" != "$host" ]; then
+            LINUX_DIAG_CODE="QEMU_REQUIRED"
+            LINUX_DIAG_REASON="Emulação necessária"
+            LINUX_DIAG_DETAIL="Host: $host; /bin/sh: $guest; execução nativa incompatível."
+        else
+            LINUX_DIAG_CODE="EXEC_FORMAT"
+            LINUX_DIAG_REASON="Formato incompatível"
+            if [ -n "$guest" ] && [ "$guest" != "desconhecida" ]; then
+                LINUX_DIAG_DETAIL="Host: ${host:-desconhecido}; /bin/sh: $guest."
+            else
+                LINUX_DIAG_DETAIL="O Android/PRoot recusou o formato do /bin/sh desta distro."
+            fi
+        fi
+    elif [[ "$erro" == *"qemu was not specified"* ]] && [ -n "$guest" ] && [ -n "$host" ] && [ "$guest" != "$host" ]; then
+        LINUX_DIAG_CODE="QEMU_REQUIRED"
+        LINUX_DIAG_REASON="Emulação necessária"
+        LINUX_DIAG_DETAIL="A arquitetura da distro é diferente da arquitetura do Termux."
+    elif [[ "$erro" == *"Permission denied"* ]]; then
+        LINUX_DIAG_CODE="PERMISSION"
+        LINUX_DIAG_REASON="Permissão inválida"
+        LINUX_DIAG_DETAIL="O /bin/sh existe, mas não pôde ser executado."
+    elif [[ "$erro" == *"No such file or directory"* ]] && [[ "$erro" == *"interpreter"* ]]; then
+        LINUX_DIAG_CODE="LOADER_MISSING"
+        LINUX_DIAG_REASON="Loader ausente"
+        LINUX_DIAG_DETAIL="O interpretador dinâmico necessário ao binário não foi encontrado."
+    elif [[ "$erro" == *"No such file or directory"* ]]; then
+        LINUX_DIAG_CODE="FILE_MISSING"
+        LINUX_DIAG_REASON="Arquivo ausente"
+        LINUX_DIAG_DETAIL="Um arquivo necessário para iniciar a distribuição não foi encontrado."
+    else
+        LINUX_DIAG_CODE="PROOT_FAILURE"
+        LINUX_DIAG_REASON="Falha no PRoot"
+        LINUX_DIAG_DETAIL="O proot-distro retornou erro durante o teste de inicialização."
+    fi
+}
+
+linux_salvar_cache_saude() {
+    local cache="${1:-}" agora="${2:-0}" status="${3:-unknown}"
+    mkdir -p "$(dirname "$cache")" 2>/dev/null || true
+    {
+        printf '%s|%s|%s\n' "$agora" "$status" "$(linux_diag_linha_unica "${LINUX_DIAG_CODE:-}")"
+        linux_diag_linha_unica "${LINUX_DIAG_REASON:-}"; printf '\n'
+        linux_diag_linha_unica "${LINUX_DIAG_DETAIL:-}"; printf '\n'
+        linux_diag_linha_unica "${LINUX_DIAG_ERROR:-}"; printf '\n'
+    } > "$cache" 2>/dev/null || true
+}
+
+linux_carregar_cache_saude() {
+    local cache="${1:-}" agora="${2:-0}" first salvo_ts salvo_status salvo_code
+    [ -f "$cache" ] || return 1
+    first="$(sed -n '1p' "$cache" 2>/dev/null || true)"
+    IFS='|' read -r salvo_ts salvo_status salvo_code <<< "$first"
+    if ! [[ "$agora" =~ ^[0-9]+$ ]] || ! [[ "${salvo_ts:-}" =~ ^[0-9]+$ ]] || \
+       [ $((agora - salvo_ts)) -lt 0 ] || [ $((agora - salvo_ts)) -ge "$LINUX_INFO_CACHE_TTL" ]; then
+        return 1
+    fi
+    # Cache antigo de problema não tinha diagnóstico; refaz uma vez para explicar a causa.
+    if [ "${salvo_status:-}" = "problem" ] && [ -z "${salvo_code:-}" ]; then
+        return 1
+    fi
+    LINUX_INFO_HEALTH="${salvo_status:-unknown}"
+    LINUX_DIAG_CODE="${salvo_code:-}"
+    LINUX_DIAG_REASON="$(sed -n '2p' "$cache" 2>/dev/null || true)"
+    LINUX_DIAG_DETAIL="$(sed -n '3p' "$cache" 2>/dev/null || true)"
+    LINUX_DIAG_ERROR="$(sed -n '4p' "$cache" 2>/dev/null || true)"
+    LINUX_INFO_HEALTH_ERROR="$LINUX_DIAG_ERROR"
+    return 0
+}
+
+linux_testar_saude_distro() {
+    local alias="${1:-}" forcar="${2:-false}" cache agora rc=0 saida="" errfile erro=""
+    cache="$(linux_cache_info_arquivo "$alias")"
+    agora="$(date +%s 2>/dev/null || printf '0')"
+
+    # Coleta metadados locais sempre: é barato e permite explicar o estado mesmo com cache.
+    linux_preparar_diagnostico_local "$alias" || true
+    if [ "$forcar" != "true" ] && linux_carregar_cache_saude "$cache" "$agora"; then
+        return 0
+    fi
+
     errfile="${TMPDIR:-/tmp}/tm-linux-health-$$.log"
+    : > "$errfile" 2>/dev/null || true
     if command -v timeout >/dev/null 2>&1 && [ "$(type -t proot-distro 2>/dev/null || true)" = "file" ]; then
         saida="$(timeout 8 proot-distro login "$alias" -- /bin/sh -lc 'printf __TM_HEALTH_OK__' 2>"$errfile")" || rc=$?
     else
         saida="$(proot-distro login "$alias" -- /bin/sh -lc 'printf __TM_HEALTH_OK__' 2>"$errfile")" || rc=$?
     fi
+    erro="$(tail -n 8 "$errfile" 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g; s/^ //; s/ $//' | cut -c1-320)"
+
     if [ "$rc" -eq 0 ] && [[ "$saida" == *"__TM_HEALTH_OK__"* ]]; then
         LINUX_INFO_HEALTH="ok"
+        LINUX_DIAG_CODE="OK"
+        LINUX_DIAG_REASON="Inicialização normal"
+        LINUX_DIAG_DETAIL="/bin/sh respondeu ao teste do Manager."
+        LINUX_DIAG_ERROR=""
+        LINUX_INFO_HEALTH_ERROR=""
     else
         LINUX_INFO_HEALTH="problem"
+        # Se o preflight encontrou algo estrutural, mantém a causa. Caso contrário classifica stderr/rc.
+        linux_classificar_falha_saude "$rc" "$erro"
+        LINUX_DIAG_ERROR="$erro"
+        LINUX_INFO_HEALTH_ERROR="$erro"
     fi
-    mkdir -p "$(dirname "$cache")" 2>/dev/null || true
-    printf '%s|%s\n' "$agora" "$LINUX_INFO_HEALTH" > "$cache" 2>/dev/null || true
-    if [ "$LINUX_INFO_HEALTH" = "problem" ]; then
-        LINUX_INFO_HEALTH_ERROR="$(tail -n 2 "$errfile" 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g' | cut -c1-160)"
-    else
-        LINUX_INFO_HEALTH_ERROR=""
-    fi
+    linux_salvar_cache_saude "$cache" "$agora" "$LINUX_INFO_HEALTH"
     rm -f "$errfile" 2>/dev/null || true
+}
+
+linux_rotulo_curto_saude() {
+    case "${LINUX_DIAG_CODE:-}" in
+        OK) printf 'OK' ;;
+        ARCH_MISMATCH|EXEC_FORMAT) printf 'Arquitetura' ;;
+        QEMU_REQUIRED) printf 'QEMU' ;;
+        ROOTFS_MISSING) printf 'Rootfs ausente' ;;
+        SHELL_MISSING|SHELL_TARGET_MISSING) printf 'Shell ausente' ;;
+        LOADER_MISSING) printf 'Loader ausente' ;;
+        TIMEOUT) printf 'Timeout' ;;
+        PERMISSION) printf 'Permissão' ;;
+        FILE_MISSING) printf 'Arquivo ausente' ;;
+        *) printf 'Inicialização' ;;
+    esac
+}
+
+linux_exibir_diagnostico_distro() {
+    local alias="${1:-}" forcar="${2:-false}" shell_exib loader_exib
+    [ -n "$alias" ] || return 1
+    linux_coletar_info_distro "$alias" "$forcar"
+    shell_exib="${LINUX_DIAG_SHELL_TARGET:-não localizado}"
+    [ -n "${LINUX_DIAG_ROOTFS:-}" ] && shell_exib="${shell_exib#"$LINUX_DIAG_ROOTFS"}"
+    loader_exib="${LINUX_DIAG_LOADER:-não identificado}"
+    cabecalho_tela "🔎 Diagnóstico Linux" "$LINUX_INFO_NAME"
+    caixa_simples "Resultado" \
+        "Saúde: ${LINUX_INFO_HEALTH_ICON} ${LINUX_INFO_HEALTH_LABEL}" \
+        "Código: ${LINUX_DIAG_CODE:-UNKNOWN}" \
+        "Motivo: ${LINUX_DIAG_REASON:-não identificado}" \
+        "Detalhe: ${LINUX_DIAG_DETAIL:-sem detalhe adicional}"
+    caixa_simples "Arquitetura" \
+        "Termux: ${LINUX_DIAG_HOST_ARCH:-desconhecida}" \
+        "Manifesto: ${LINUX_DIAG_MANIFEST_ARCH:-não informado}" \
+        "/bin/sh: ${LINUX_DIAG_SHELL_ARCH:-desconhecida}" \
+        "QEMU: ${LINUX_DIAG_QEMU:-não verificado}"
+    caixa_simples "Arquivos" \
+        "Shell: $shell_exib" \
+        "Loader: $loader_exib" \
+        "Loader no rootfs: ${LINUX_DIAG_LOADER_STATUS:-não verificado}" \
+        "Log: $(caminho_curto "$LINUX_LOG")"
+    if [ -n "${LINUX_INFO_HEALTH_ERROR:-}" ]; then
+        caixa_simples "Último erro" \
+            "$(printf '%s' "$LINUX_INFO_HEALTH_ERROR" | cut -c1-90)"
+    fi
+    pause
 }
 
 linux_distro_sessoes_ativas() {
@@ -519,7 +802,7 @@ linux_coletar_info_distro() {
         LINUX_INFO_HEALTH_LABEL="OK"
     else
         LINUX_INFO_HEALTH_ICON="⚠️"
-        LINUX_INFO_HEALTH_LABEL="Problema"
+        LINUX_INFO_HEALTH_LABEL="$(linux_rotulo_curto_saude)"
     fi
     if [ "$sessoes" -gt 0 ] 2>/dev/null; then
         LINUX_INFO_STATE_ICON="🟢"
@@ -547,9 +830,9 @@ linux_exibir_info_distro() {
         "Desktop(s): $LINUX_INFO_DESKTOPS"
     if [ "$LINUX_INFO_HEALTH" != "ok" ]; then
         caixa_simples "⚠ Diagnóstico" \
-            "A distribuição não passou no teste de inicialização de /bin/sh." \
-            "Isso pode indicar arquitetura incorreta ou arquivos internos danificados." \
-            "Use Reparar / reinstalar no menu desta distribuição."
+            "Motivo: ${LINUX_DIAG_REASON:-não identificado}" \
+            "Código: ${LINUX_DIAG_CODE:-UNKNOWN}" \
+            "Use Diagnóstico para ver os detalhes."
     fi
     pause
 }
@@ -759,28 +1042,50 @@ linux_instalar_distro() {
 }
 
 linux_abrir_terminal_distro() {
-    local alias="${1:-}"
+    local alias="${1:-}" escolha
     linux_garantir_proot_distro || { pause; return 1; }
     if [ -n "$alias" ]; then
         LINUX_DISTRO_ALIAS="$alias"
     else
-        linux_selecionar_instalada "⌨️ Iniciar Linux" "Escolha uma distribuição instalada" || return 0
+        linux_selecionar_instalada "⌨️ Iniciar Linux" "Escolha uma distribuição" || return 0
     fi
-    linux_coletar_info_distro "$LINUX_DISTRO_ALIAS" false
-    if [ "$LINUX_INFO_HEALTH" != "ok" ]; then
-        cabecalho_tela "⚠ Linux com problema" "$LINUX_DISTRO_ALIAS"
-        caixa_simples "Inicialização bloqueada" \
-            "O teste de saúde desta distribuição falhou." \
-            "Evitei abrir uma sessão que provavelmente terminaria em Exec format error." \
-            "Use Reparar / reinstalar para recriar a distro na arquitetura correta."
-        pause
-        return 1
-    fi
+
+    while true; do
+        linux_coletar_info_distro "$LINUX_DISTRO_ALIAS" false
+        if [ "$LINUX_INFO_HEALTH" = "ok" ]; then
+            break
+        fi
+        menu_unificado "⚠ Linux com problema" \
+            "$LINUX_DISTRO_ALIAS • ${LINUX_DIAG_REASON:-falha ao iniciar}" \
+            "[0] Voltar  •  [1–3] Selecionar" \
+            "1|🔎|Ver diagnóstico|Causa e detalhes técnicos" \
+            "2|🧪|Testar novamente|Refazer o teste sem cache" \
+            "3|🩺|Reparar / reinstalar|Recriar esta distribuição"
+        ler_opcao
+        escolha="$RESPOSTA_MENU"
+        case "$escolha" in
+            1) linux_exibir_diagnostico_distro "$LINUX_DISTRO_ALIAS" false ;;
+            2)
+                linux_invalidar_cache_distro "$LINUX_DISTRO_ALIAS"
+                linux_coletar_info_distro "$LINUX_DISTRO_ALIAS" true
+                if [ "$LINUX_INFO_HEALTH" = "ok" ]; then
+                    ok "Teste concluído: distribuição saudável."
+                    sleep 1
+                    break
+                fi
+                feedback_curto "Ainda há problema: ${LINUX_DIAG_REASON:-inicialização}."
+                ;;
+            3) linux_resetar_distro "$LINUX_DISTRO_ALIAS" ;;
+            0) return 1 ;;
+            *) feedback_curto "Opção inválida." ;;
+        esac
+    done
+
     cabecalho_tela "⌨️ Iniciar Linux" "Abrindo $LINUX_DISTRO_ALIAS"
     caixa_simples "Sessão Linux" \
         "Distribuição: $LINUX_INFO_NAME" \
         "Alias: $LINUX_DISTRO_ALIAS" \
-        "Digite exit dentro do Linux para voltar ao Termux Manager."
+        "Use exit para voltar ao Manager."
     ui_buffer_flush 2>/dev/null || true
     sleep 0.3
     linux_log "iniciando terminal: $LINUX_DISTRO_ALIAS"
@@ -871,8 +1176,9 @@ linux_atualizar_distro() {
     if [ "$LINUX_INFO_HEALTH" != "ok" ]; then
         cabecalho_tela "⚠ Não é possível atualizar" "$alias"
         caixa_simples "Distribuição com problema" \
-            "O /bin/sh não conseguiu iniciar." \
-            "Repare a distribuição antes de tentar atualizar os pacotes."
+            "Motivo: ${LINUX_DIAG_REASON:-falha ao iniciar}" \
+            "Código: ${LINUX_DIAG_CODE:-UNKNOWN}" \
+            "Use Diagnóstico ou Reparar antes de atualizar."
         pause
         return 1
     fi
@@ -966,15 +1272,16 @@ menu_linux_distro() {
         linux_coletar_info_distro "$alias" false
         menu_unificado "🐧 $LINUX_INFO_NAME" \
             "${LINUX_INFO_STATE_ICON} ${LINUX_INFO_STATE_LABEL} • ${LINUX_INFO_HEALTH_ICON} ${LINUX_INFO_HEALTH_LABEL} • $LINUX_INFO_SIZE" \
-            "[0] Voltar  •  [1–8] Selecionar" \
-            "1|⌨️|Iniciar terminal|Abrir esta distribuição no terminal" \
-            "2|🖥️|Desktop / X11|Desktop(s): $LINUX_INFO_DESKTOPS" \
-            "3|🔄|Atualizar sistema|$(linux_descrever_gerenciador_distro "$LINUX_INFO_PM")" \
-            "4|💾|Criar backup|Salvar uma cópia completa em Downloads" \
-            "5|ℹ️|Informações completas|Versão, arquitetura, imagem, tamanho e saúde" \
-            "6|⏹️|Encerrar sessões|Sessões ativas: $LINUX_INFO_SESSIONS" \
-            "7|🩺|Reparar / reinstalar|Recriar na arquitetura correta" \
-            "8|🗑️|Remover distribuição|Excluir permanentemente esta distro"
+            "[0] Voltar  •  [1–9] Selecionar" \
+            "1|⌨️|Iniciar terminal|Abrir no terminal" \
+            "2|🖥️|Desktop / X11|Ambientes gráficos" \
+            "3|🔄|Atualizar sistema|Atualizar pacotes" \
+            "4|💾|Criar backup|Salvar em Downloads" \
+            "5|🔎|Diagnóstico|Saúde e causa de falhas" \
+            "6|ℹ️|Informações|Versão, arquitetura e tamanho" \
+            "7|⏹️|Encerrar sessões|Ativas: $LINUX_INFO_SESSIONS" \
+            "8|🩺|Reparar / reinstalar|Recriar a distro" \
+            "9|🗑️|Remover distribuição|Excluir esta distro"
         ler_opcao
         escolha="$RESPOSTA_MENU"
         case "$escolha" in
@@ -982,10 +1289,11 @@ menu_linux_distro() {
             2) linux_iniciar_desktop "$alias" ;;
             3) linux_atualizar_distro "$alias" ;;
             4) linux_backup_distro "$alias" ;;
-            5) linux_exibir_info_distro "$alias" ;;
-            6) linux_encerrar_sessoes_distro "$alias" ;;
-            7) linux_resetar_distro "$alias" ;;
-            8)
+            5) linux_exibir_diagnostico_distro "$alias" true ;;
+            6) linux_exibir_info_distro "$alias" ;;
+            7) linux_encerrar_sessoes_distro "$alias" ;;
+            8) linux_resetar_distro "$alias" ;;
+            9)
                 linux_remover_distro "$alias"
                 linux_coletar_instaladas || true
                 printf '%s\n' "${LINUX_INSTALLED_DISTROS[@]}" | grep -Fxq "$alias" || return 0
@@ -1547,7 +1855,7 @@ linux_iniciar_desktop() {
     linux_coletar_info_distro "$LINUX_DISTRO_ALIAS" false
     if [ "$LINUX_INFO_HEALTH" != "ok" ]; then
         cabecalho_tela "⚠ Desktop indisponível" "$LINUX_DISTRO_ALIAS"
-        caixa_simples "Distribuição com problema"             "O Linux não passou no teste de inicialização."             "Repare a distribuição antes de iniciar a interface gráfica."
+        caixa_simples "Distribuição com problema"             "Motivo: ${LINUX_DIAG_REASON:-falha ao iniciar}"             "Use Diagnóstico ou Reparar antes do desktop."
         pause
         return 1
     fi
@@ -1677,11 +1985,11 @@ menu_linux_celular() {
         fi
         menu_unificado "🐧 LINUX NO CELULAR" "PRoot sem root • perfil ${LINUX_PROFILE}" \
             "[0] Voltar  •  [1–5] Selecionar" \
-            "1|🐧|Meus Linux|$instaladas instalada(s) • administrar, iniciar, atualizar e backup" \
-            "2|⬇️|Instalar novo Linux|Ubuntu, Debian, Alpine e pesquisar outras imagens" \
-            "3|🖥️|Termux:X11|Desktops gráficos e interface X11" \
-            "4|📱|Compatibilidade do aparelho|RAM, CPU, espaço e recomendação" \
-            "5|ℹ️|Status do Linux|proot-distro: $proot_status • X11: $x11_status"
+            "1|🐧|Meus Linux|$instaladas instalada(s) • administrar" \
+            "2|⬇️|Instalar novo Linux|Escolher uma distribuição" \
+            "3|🖥️|Termux:X11|Desktops e interface gráfica" \
+            "4|📱|Compatibilidade|RAM, CPU e espaço" \
+            "5|ℹ️|Status do Linux|PRoot: $proot_status • X11: $x11_status"
         ler_opcao
         case "$RESPOSTA_MENU" in
             1) linux_meus_linux ;;

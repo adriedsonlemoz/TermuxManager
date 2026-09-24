@@ -230,8 +230,8 @@ menu_ambiente_hub() {
         menu_unificado "🛠️ AMBIENTE E FERRAMENTAS" "Termux, pacotes e diagnóstico" \
             "[0] Voltar  •  [1–3] Selecionar" \
             "1|🧰|Instalar ferramentas|Pacotes para desenvolvimento" \
-            "2|🔧|Ambiente Termux|Atualização, armazenamento e manutenção" \
-            "3|🔎|Diagnóstico rápido|$(termux_origem_resumida) • verificar ambiente"
+            "2|🔧|Ambiente Termux|Atualizar e manter o Termux" \
+            "3|🔎|Diagnóstico rápido|$(termux_origem_resumida)"
         ler_opcao
         case "$RESPOSTA_MENU" in
             1) menu_instalar_ferramentas ;;
@@ -267,7 +267,7 @@ menu_ajuda_sobre_hub() {
     while true; do
         menu_unificado "❓ AJUDA E SOBRE" "Manual, versão e informações do Manager" \
             "[0] Voltar  •  [1–2] Selecionar" \
-            "1|❓|Ajuda|Instalação, atualização e solução de problemas" \
+            "1|❓|Ajuda|Instalação e problemas" \
             "2|📘|Sobre|Versão, ambiente e desenvolvedor"
         ler_opcao
         case "$RESPOSTA_MENU" in
@@ -300,7 +300,7 @@ menu_principal() {
             "2|🚦|Em execução|$ativos componente(s) ativo(s)" \
             "3|📦|Importar projeto|Pasta, arquivo ou ZIP" \
             "4|🐧|Linux no celular|Distros, PRoot e Termux:X11" \
-            "5|🛠️|Ambiente e ferramentas|Termux, pacotes e diagnóstico" \
+            "5|🛠️|Ambiente e ferramentas|Termux e pacotes" \
             "6|🔄|Atualizar Manager|GitHub main ou arquivo local" \
             "7|⚙️|Configurações|Preferências e manutenção" \
             "8|❓|Ajuda e Sobre|Manual, versão e desenvolvedor"
