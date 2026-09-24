@@ -83,6 +83,13 @@ ajuda_estrutura() {
         "runtime_dependencies.sh — configuração, dependências e testes" \
         "runtime_processes.sh — processos, portas, execução e saúde" \
         "termux.sh — ambiente, ferramentas e primeira configuração" \
+        "linux.sh — carregador do Linux/PRoot e Termux:X11" \
+        "linux_core.sh — arquitetura, perfil e caminhos do PRoot" \
+        "linux_distros.sh — instalação e manutenção das distribuições" \
+        "linux_backup.sh — backup, restauração e sessões" \
+        "linux_diagnostics.sh — diagnóstico do PRoot e das distros" \
+        "linux_x11.sh — Termux:X11 e ambientes gráficos" \
+        "linux_ui.sh — menus do subsistema Linux" \
         "updater.sh — atualização, backup e reinício" \
         "settings.sh — preferências gerais e carregador de configurações" \
         "settings_fish.sh — Fish Shell e experiência interativa" \

@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.102  
+**Versão atual:** 1.0.103  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -28,6 +28,10 @@ O Manager usa o **nome da pasta** como identidade padrão do projeto. O campo `n
 Ao executar frontend + backend juntos, o Manager usa um painel único com quatro etapas (Backend, Frontend, Inicialização e Disponibilidade). Status, avisos, PID, logs e detecção de servidor permanecem dentro da moldura visual durante a execução. Quando uma etapa falha, o painel é encerrado corretamente e o Manager oferece **Coletar logs do teste**, gerando em Downloads um único TXT sanitizado com logs de backend, frontend, Manager e metadados de processo.
 
 
+
+### Refatoração estrutural concluída do Linux (1.0.103)
+
+A rodada principal de refatoração foi concluída. O antigo `linux.sh`, que ainda concentrava 1.320 linhas após a primeira etapa, agora atua apenas como carregador e distribui núcleo/arquitetura, distribuições, backup/restauração, diagnóstico, X11 e interface em módulos coesos. O cache de compatibilidade OCI passou a usar um identificador derivado da referência completa para evitar colisões entre imagens diferentes, e backups vazios/corrompidos com nome semelhante ao padrão do Manager deixaram de aparecer como restauráveis.
 
 ### Atualizador modular e validação reforçada (1.0.102)
 
@@ -386,10 +390,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.102
-Tag: v1.0.102
-Release: Manager 1.0.102
-Pacote único: TermuxManager-v1.0.102.zip
+Versão: 1.0.103
+Tag: v1.0.103
+Release: Manager 1.0.103
+Pacote único: TermuxManager-v1.0.103.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 
@@ -442,8 +446,12 @@ Em **Configurações → Manutenção do Manager**:
 │   ├── import_copy.sh
 │   ├── import_wizard.sh
 │   ├── linux.sh
+│   ├── linux_core.sh
+│   ├── linux_distros.sh
+│   ├── linux_backup.sh
 │   ├── linux_diagnostics.sh
 │   ├── linux_x11.sh
+│   ├── linux_ui.sh
 │   ├── projects.sh
 │   ├── projects_github.sh
 │   ├── projects_github_core.sh

@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.0.103] - 2026-09-24
+
+### Refatorado
+- Décima primeira e última etapa da rodada principal de refatoração: `modules/linux.sh`, que ainda tinha **1.320 linhas** após a primeira divisão, foi reduzido para **23 linhas** e agora atua somente como carregador do subsistema Linux.
+- Arquitetura, perfil do aparelho, compatibilidade OCI, PRoot e caminhos de containers foram movidos para `modules/linux_core.sh`.
+- Descoberta, informações, instalação e manutenção das distribuições foram movidas para `modules/linux_distros.sh`.
+- Backup, restauração e encerramento de sessões foram movidos para `modules/linux_backup.sh`.
+- Menus e navegação foram movidos para `modules/linux_ui.sh`; `linux_diagnostics.sh` e `linux_x11.sh` continuam especializados nas funções já extraídas anteriormente.
+- A API pública permanece disponível ao carregar somente `linux.sh`, preservando compatibilidade com `manager.sh` e chamadas existentes.
+
+### Corrigido
+- O cache de arquiteturas do Docker Hub/OCI agora inclui um fingerprint da referência completa. Antes, referências diferentes que geravam o mesmo nome sanitizado, como `org/repo:tag` e `org_repo:tag`, podiam compartilhar o mesmo arquivo de cache e reutilizar um resultado de compatibilidade incorreto.
+- Arquivos vazios ou corrompidos em Downloads não são mais aceitos como backups Linux apenas por seguirem o padrão `TermuxManager-<alias>-<data>.tar*`; quando `tar` está disponível, o arquivo precisa ser legível e conter dados antes de aparecer na lista de restauração.
+- A identificação de alias recuperado do conteúdo ou do nome do backup agora é limitada ao mesmo formato seguro usado pelas distribuições do Manager.
+
+### Testes
+- `test-linux-refactor.sh` foi ampliado para validar o carregador final e os seis submódulos do Linux.
+- `test-linux-manager.sh` agora cobre colisão de cache OCI e rejeição de backup corrompido, mantendo a suíte em **43 testes**.
+
 ## [1.0.102] - 2026-09-24
 
 ### Refatorado
