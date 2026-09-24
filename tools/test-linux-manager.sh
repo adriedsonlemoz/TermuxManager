@@ -25,8 +25,15 @@ grep -Fq 'termux-x11-nightly' "$LINUX"
 grep -Fq 'termux-x11-universal-debug.apk' "$LINUX"
 grep -Fq -- '--shared-tmp' "$LINUX"
 grep -Fq 'xfce4-session' "$LINUX"
+grep -Fq 'startlxqt' "$LINUX"
+grep -Fq 'startlxde' "$LINUX"
+grep -Fq 'mate-session' "$LINUX"
+grep -Fq 'openbox-session' "$LINUX"
+grep -Fq 'startplasma-x11' "$LINUX"
+grep -Fq 'gnome-session' "$LINUX"
+grep -Fq 'Você pode instalar mais de um ambiente na mesma distribuição.' "$LINUX"
 grep -Fq 'Perfil estimado' "$LINUX"
-grep -Fq 'pode apresentar travamentos' "$LINUX"
+grep -Fq 'podem apresentar travamentos' "$LINUX"
 grep -Fq 'linux_docker_arquitetura_dispositivo' "$LINUX"
 grep -Fq 'linux_verificar_compatibilidade_imagem' "$LINUX"
 grep -Fq 'Compatibilidade: ${LINUX_ARCH_STATUS_LABEL}' "$LINUX"
@@ -35,9 +42,9 @@ grep -Fq 'linux_detectar_gerenciador_distro' "$LINUX"
 grep -Fq 'linux_xfce_instalado' "$LINUX"
 grep -Fq 'dnf -y install @xfce-desktop-environment' "$LINUX"
 grep -Fq 'zypper --non-interactive install -t pattern xfce' "$LINUX"
-grep -Fq 'XFCE já instalado' "$LINUX"
-grep -Fq 'Instalar XFCE agora?' "$LINUX"
-grep -Fq 'APT, Pacman, APK, DNF e Zypper são reconhecidos.' "$LINUX"
+grep -Fq 'linux_desktop_instalado' "$LINUX"
+grep -Fq 'Escolher e instalar um ambiente agora?' "$LINUX"
+grep -Fq 'linux_instalar_ambiente_grafico' "$LINUX"
 
 # Referências OCI atuais podem conter tag (:) e caminho (/).
 (
@@ -99,34 +106,63 @@ grep -Fq 'APT, Pacman, APK, DNF e Zypper são reconhecidos.' "$LINUX"
     [ "$LINUX_ARCH_STATUS" = "unknown" ]
 )
 
-# Simula detecção do gerenciador da distro e presença/ausência do XFCE.
+# Simula detecção do gerenciador e múltiplos ambientes gráficos.
 (
     set -u
-    PAINEL_DIR="/tmp/painel-test-linux-xfce"
+    PAINEL_DIR="/tmp/painel-test-linux-desktops"
     LOG_DIR="$PAINEL_DIR/.logs"
     HOME="/tmp"
     PREFIX="/tmp/prefix"
     source "$LINUX"
 
-    SIM_XFCE="no"
+    SIM_COMMANDS="xfce4-session,startlxqt"
     proot-distro() {
         local script="${!#}"
         if [[ "$script" == *'command -v apt-get'* ]]; then
             printf 'dnf\n'
             return 0
         fi
-        if [[ "$script" == *'command -v xfce4-session'* ]]; then
-            [ "$SIM_XFCE" = "yes" ]
+        if [[ "$script" == *"command -v 'xfce4-session'"* ]]; then
+            [[ ",$SIM_COMMANDS," == *",xfce4-session,"* ]]
             return
+        fi
+        if [[ "$script" == *"command -v 'startlxqt'"* ]]; then
+            [[ ",$SIM_COMMANDS," == *",startlxqt,"* ]]
+            return
+        fi
+        if [[ "$script" == *"command -v 'startlxde'"* ]] || \
+           [[ "$script" == *"command -v 'mate-session'"* ]] || \
+           [[ "$script" == *"command -v 'openbox-session'"* ]] || \
+           [[ "$script" == *"command -v 'i3'"* ]] || \
+           [[ "$script" == *"command -v 'startplasma-x11'"* ]] || \
+           [[ "$script" == *"command -v 'gnome-session'"* ]]; then
+            return 1
         fi
         return 0
     }
 
     [ "$(linux_detectar_gerenciador_distro teste)" = "dnf" ]
     [ "$(linux_descrever_gerenciador_distro dnf)" = "DNF (Fedora/Rocky)" ]
-    ! linux_xfce_instalado teste
-    SIM_XFCE="yes"
-    linux_xfce_instalado teste
+    [ "$(linux_desktop_launcher xfce)" = "xfce4-session" ]
+    [ "$(linux_desktop_launcher lxqt)" = "startlxqt" ]
+    [ "$(linux_desktop_launcher kde)" = "startplasma-x11" ]
+    linux_desktop_instalado teste xfce
+    linux_desktop_instalado teste lxqt
+    ! linux_desktop_instalado teste mate
+    [ "$(linux_desktops_instalados_resumo teste)" = "XFCE, LXQt" ]
+
+    linux_mem_total_kb() { printf '%s\n' $((8 * 1024 * 1024)); }
+    linux_espaco_livre_kb() { printf '%s\n' $((20 * 1024 * 1024)); }
+    linux_cpu_nucleos() { printf '8\n'; }
+    linux_avaliar_aparelho
+    [ "$LINUX_PROFILE" = "DESKTOP" ]
+    linux_desktop_recomendado_perfil xfce
+    linux_desktop_recomendado_perfil mate
+    ! linux_desktop_recomendado_perfil gnome
+
+    script="$(linux_desktop_guest_script lxqt)"
+    [[ "$script" == *'lxqt'* ]]
+    [[ "$script" == *'qterminal'* ]]
 )
 
-echo "OK: Linux no celular integra PRoot, Termux:X11, XFCE inteligente, diagnóstico, arquitetura e confirmações de segurança."
+echo "OK: Linux no celular integra PRoot, Termux:X11, múltiplos desktops, perfil de hardware, arquitetura e confirmações de segurança."

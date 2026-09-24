@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.82] - 2026-09-23
+
+### Adicionado
+- O módulo **Linux no celular** agora permite escolher entre **XFCE, LXQt, LXDE, MATE, Openbox, i3, KDE Plasma e GNOME** para uso com Termux:X11.
+- Cada ambiente gráfico mostra descrição, peso estimado e indicação de compatibilidade com o perfil BÁSICO, INTERMEDIÁRIO ou DESKTOP calculado pelo Manager.
+- Uma mesma distribuição pode manter **mais de um ambiente gráfico instalado**; ao iniciar o desktop, o Manager detecta os ambientes disponíveis e pergunta qual deve ser aberto.
+- Instalação automatizada dos novos ambientes para `apt`, `pacman`, `apk`, `dnf` e `zypper`, com alternativas de pacotes/grupos quando a distribuição usa nomes diferentes.
+
+### Melhorado
+- A recomendação de interface gráfica agora varia pelo hardware: LXDE/Openbox/i3 para aparelhos limitados; XFCE/LXQt para perfil intermediário; XFCE/LXQt/MATE para aparelhos com mais margem.
+- KDE Plasma e GNOME ficam disponíveis como opções avançadas com avisos explícitos de consumo e possíveis limitações em PRoot.
+- A tela de início do desktop deixou de assumir XFCE e passou a validar o inicializador correto de cada ambiente antes de abrir o Termux:X11.
+
 ## [1.0.81] - 2026-09-23
 
 ### Melhorado

@@ -215,19 +215,19 @@ linux_avaliar_aparelho() {
     LINUX_PROFILE="DESKTOP"
     LINUX_PROFILE_ICON="🟢"
     LINUX_PROFILE_MSG="Boa margem para uma distribuição Linux e interface gráfica leve."
-    LINUX_PROFILE_RECOMMEND="Termux:X11 + XFCE pode ser usado; ainda assim o desempenho varia por aparelho."
+    LINUX_PROFILE_RECOMMEND="XFCE, LXQt ou MATE são boas opções. KDE pode ser testado se houver RAM livre suficiente."
 
     # Heurística conservadora. Não tenta inferir potência real da CPU apenas por núcleos.
     if [ "$ram_kb" -lt $((3 * 1024 * 1024)) ] || [ "$livre_kb" -lt $((5 * 1024 * 1024)) ]; then
         LINUX_PROFILE="BÁSICO"
         LINUX_PROFILE_ICON="🔴"
         LINUX_PROFILE_MSG="O aparelho tem pouca margem para um desktop Linux completo."
-        LINUX_PROFILE_RECOMMEND="Prefira Linux em modo terminal. Interface gráfica pode apresentar travamentos e falta de memória."
+        LINUX_PROFILE_RECOMMEND="Prefira terminal, LXDE, Openbox ou i3. Desktops pesados podem apresentar travamentos e falta de memória."
     elif [ "$ram_kb" -lt $((6 * 1024 * 1024)) ] || [ "$livre_kb" -lt $((10 * 1024 * 1024)) ] || [ "$cores" -le 4 ]; then
         LINUX_PROFILE="INTERMEDIÁRIO"
         LINUX_PROFILE_ICON="🟡"
         LINUX_PROFILE_MSG="Linux deve funcionar bem, mas o desktop precisa ser leve."
-        LINUX_PROFILE_RECOMMEND="XFCE é a opção indicada. Evite muitas aplicações pesadas abertas ao mesmo tempo."
+        LINUX_PROFILE_RECOMMEND="XFCE ou LXQt são indicados. MATE também pode funcionar; evite KDE/GNOME com muitas aplicações abertas."
     fi
 }
 
@@ -450,8 +450,8 @@ linux_instalar_distro() {
     while true; do
         menu_unificado "⬇️ INSTALAR DISTRIBUIÇÃO" "${LINUX_PROFILE_ICON} ${LINUX_PROFILE} • CPU $(linux_arquitetura) • $(linux_formatar_gb_kb "$LINUX_FREE_KB") livres" \
             "[0] Voltar  •  [1–7] Selecionar" \
-            "1|🐧|Ubuntu 24.04|Recomendado para desktop XFCE • imagem ubuntu:24.04" \
-            "2|🐧|Debian 12|Estável e leve • recomendado para desktop XFCE" \
+            "1|🐧|Ubuntu 24.04|Boa base para desktops gráficos • imagem ubuntu:24.04" \
+            "2|🐧|Debian 12|Estável e versátil para desktop gráfico" \
             "3|🪶|Alpine 3.23|Muito leve • melhor para terminal e servidores" \
             "4|🎩|Fedora 44|Sistema moderno • consumo maior" \
             "5|🦎|openSUSE Leap 15|Alternativa estável" \
@@ -663,14 +663,6 @@ else
 fi' 2>>"$LINUX_LOG" | tail -n 1
 }
 
-linux_xfce_instalado() {
-    local alias="${1:-}"
-    [ -n "$alias" ] || return 1
-    mkdir -p "$(dirname "$LINUX_LOG")" 2>/dev/null || true
-    proot-distro login "$alias" -- /bin/sh -lc 'command -v xfce4-session >/dev/null 2>&1' \
-        >>"$LINUX_LOG" 2>&1
-}
-
 linux_descrever_gerenciador_distro() {
     case "${1:-desconhecido}" in
         apt) printf 'APT (Debian/Ubuntu)' ;;
@@ -682,26 +674,245 @@ linux_descrever_gerenciador_distro() {
     esac
 }
 
-linux_instalar_xfce_na_distro() {
-    local alias="${1:-}" gerenciador guest_script
-    [ -n "$alias" ] || return 1
+linux_desktop_nome() {
+    case "${1:-}" in
+        xfce) printf 'XFCE' ;;
+        lxqt) printf 'LXQt' ;;
+        lxde) printf 'LXDE' ;;
+        mate) printf 'MATE' ;;
+        openbox) printf 'Openbox' ;;
+        i3) printf 'i3' ;;
+        kde) printf 'KDE Plasma' ;;
+        gnome) printf 'GNOME' ;;
+        *) printf '%s' "${1:-desconhecido}" ;;
+    esac
+}
 
+linux_desktop_launcher() {
+    case "${1:-}" in
+        xfce) printf 'xfce4-session' ;;
+        lxqt) printf 'startlxqt' ;;
+        lxde) printf 'startlxde' ;;
+        mate) printf 'mate-session' ;;
+        openbox) printf 'openbox-session' ;;
+        i3) printf 'i3' ;;
+        kde) printf 'startplasma-x11' ;;
+        gnome) printf 'gnome-session' ;;
+        *) return 1 ;;
+    esac
+}
+
+linux_desktop_peso() {
+    case "${1:-}" in
+        openbox|i3) printf 'muito leve' ;;
+        lxde) printf 'muito leve' ;;
+        xfce|lxqt) printf 'leve' ;;
+        mate) printf 'médio' ;;
+        kde) printf 'pesado' ;;
+        gnome) printf 'muito pesado' ;;
+        *) printf 'desconhecido' ;;
+    esac
+}
+
+linux_desktop_descricao() {
+    case "${1:-}" in
+        xfce) printf 'Leve, completo e com ótima compatibilidade' ;;
+        lxqt) printf 'Leve e com visual moderno' ;;
+        lxde) printf 'Muito leve para aparelhos modestos' ;;
+        mate) printf 'Desktop tradicional com consumo médio' ;;
+        openbox) printf 'Janela mínima e extremamente leve' ;;
+        i3) printf 'Tiling muito leve, focado em teclado' ;;
+        kde) printf 'Visual avançado, exige mais RAM e CPU' ;;
+        gnome) printf 'Completo, pesado e mais limitado em PRoot' ;;
+        *) printf 'Ambiente gráfico' ;;
+    esac
+}
+
+linux_desktop_recomendado_perfil() {
+    local desktop="${1:-}" perfil="${2:-$LINUX_PROFILE}"
+    case "$perfil:$desktop" in
+        BÁSICO:lxde|BÁSICO:openbox|BÁSICO:i3) return 0 ;;
+        INTERMEDIÁRIO:xfce|INTERMEDIÁRIO:lxqt) return 0 ;;
+        DESKTOP:xfce|DESKTOP:lxqt|DESKTOP:mate) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+linux_desktop_aviso_perfil() {
+    local desktop="${1:-}" peso
+    peso="$(linux_desktop_peso "$desktop")"
+    if [ "$LINUX_PROFILE" = "BÁSICO" ] && [[ "$desktop" =~ ^(mate|kde|gnome)$ ]]; then
+        printf '⚠ Muito pesado para o perfil BÁSICO; travamentos e encerramentos são prováveis.'
+    elif [ "$LINUX_PROFILE" = "INTERMEDIÁRIO" ] && [[ "$desktop" =~ ^(kde|gnome)$ ]]; then
+        printf '⚠ Pode consumir muita RAM/CPU neste aparelho; use apenas para testar.'
+    elif [ "$desktop" = "gnome" ]; then
+        printf '⚠ GNOME pode ter limitações extras em PRoot por depender de serviços do sistema.'
+    elif [ "$desktop" = "kde" ]; then
+        printf 'ℹ KDE Plasma é mais pesado que XFCE/LXQt e pode demorar mais para iniciar.'
+    else
+        printf 'Consumo estimado: %s.' "$peso"
+    fi
+}
+
+linux_escolher_desktop() {
+    local titulo="${1:-🖥️ Escolher ambiente gráfico}" subtitulo="${2:-Selecione o desktop}" rec=""
+    linux_avaliar_aparelho
+    local -a itens=()
+    local id nome desc peso marcador
+    for id in xfce lxqt lxde mate openbox i3 kde gnome; do
+        nome="$(linux_desktop_nome "$id")"
+        desc="$(linux_desktop_descricao "$id")"
+        peso="$(linux_desktop_peso "$id")"
+        marcador=""
+        linux_desktop_recomendado_perfil "$id" && marcador=" • recomendado"
+        itens+=("$(( ${#itens[@]} + 1 ))|🖥️|$nome|$desc • $peso$marcador")
+    done
+    menu_unificado "$titulo" "$subtitulo • perfil ${LINUX_PROFILE}" \
+        "[0] Voltar  •  [1–8] Selecionar" "${itens[@]}"
+    ler_opcao
+    case "$RESPOSTA_MENU" in
+        1) LINUX_DESKTOP_ID="xfce" ;;
+        2) LINUX_DESKTOP_ID="lxqt" ;;
+        3) LINUX_DESKTOP_ID="lxde" ;;
+        4) LINUX_DESKTOP_ID="mate" ;;
+        5) LINUX_DESKTOP_ID="openbox" ;;
+        6) LINUX_DESKTOP_ID="i3" ;;
+        7) LINUX_DESKTOP_ID="kde" ;;
+        8) LINUX_DESKTOP_ID="gnome" ;;
+        0) return 1 ;;
+        *) warn "Opção inválida."; sleep 1; return 2 ;;
+    esac
+    LINUX_DESKTOP_NOME="$(linux_desktop_nome "$LINUX_DESKTOP_ID")"
+    LINUX_DESKTOP_LAUNCHER="$(linux_desktop_launcher "$LINUX_DESKTOP_ID")"
+    return 0
+}
+
+linux_desktop_instalado() {
+    local alias="${1:-}" desktop="${2:-}" launcher
+    [ -n "$alias" ] && [ -n "$desktop" ] || return 1
+    launcher="$(linux_desktop_launcher "$desktop" 2>/dev/null)" || return 1
+    mkdir -p "$(dirname "$LINUX_LOG")" 2>/dev/null || true
+    proot-distro login "$alias" -- /bin/sh -lc "command -v '$launcher' >/dev/null 2>&1" \
+        >>"$LINUX_LOG" 2>&1
+}
+
+linux_xfce_instalado() {
+    linux_desktop_instalado "${1:-}" xfce
+}
+
+linux_desktops_instalados() {
+    local alias="${1:-}" id
+    [ -n "$alias" ] || return 1
+    for id in xfce lxqt lxde mate openbox i3 kde gnome; do
+        linux_desktop_instalado "$alias" "$id" && printf '%s\n' "$id"
+    done
+}
+
+linux_desktops_instalados_resumo() {
+    local alias="${1:-}" id nomes=""
+    while IFS= read -r id; do
+        [ -n "$id" ] || continue
+        nomes+="${nomes:+, }$(linux_desktop_nome "$id")"
+    done < <(linux_desktops_instalados "$alias" 2>/dev/null || true)
+    [ -n "$nomes" ] && printf '%s' "$nomes" || printf 'nenhum'
+}
+
+linux_desktop_guest_script() {
+    local desktop="${1:-}" launcher
+    launcher="$(linux_desktop_launcher "$desktop" 2>/dev/null)" || return 1
+    cat <<EOF
+set -e
+DESKTOP_ID='$desktop'
+LAUNCHER='$launcher'
+if command -v apt-get >/dev/null 2>&1; then
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update
+  case \"\$DESKTOP_ID\" in
+    xfce) apt-get install -y xfce4 xfce4-terminal dbus-x11 ;;
+    lxqt) apt-get install -y lxqt qterminal dbus-x11 || apt-get install -y lxqt-core qterminal dbus-x11 ;;
+    lxde) apt-get install -y lxde-core lxterminal dbus-x11 || apt-get install -y lxde lxterminal dbus-x11 ;;
+    mate) apt-get install -y mate-desktop-environment-core mate-terminal dbus-x11 || apt-get install -y mate-desktop-environment mate-terminal dbus-x11 ;;
+    openbox) apt-get install -y openbox tint2 lxterminal dbus-x11 ;;
+    i3) apt-get install -y i3-wm i3status dmenu xterm dbus-x11 || apt-get install -y i3 xterm dbus-x11 ;;
+    kde) apt-get install -y plasma-desktop konsole dbus-x11 || apt-get install -y kde-plasma-desktop konsole dbus-x11 ;;
+    gnome) apt-get install -y gnome-session gnome-shell gnome-terminal dbus-x11 ;;
+  esac
+elif command -v pacman >/dev/null 2>&1; then
+  pacman -Sy --noconfirm
+  case \"\$DESKTOP_ID\" in
+    xfce) pacman -S --needed --noconfirm xfce4 xfce4-goodies dbus ;;
+    lxqt) pacman -S --needed --noconfirm lxqt qterminal dbus ;;
+    lxde) pacman -S --needed --noconfirm lxde lxterminal dbus ;;
+    mate) pacman -S --needed --noconfirm mate mate-extra dbus ;;
+    openbox) pacman -S --needed --noconfirm openbox tint2 xterm dbus ;;
+    i3) pacman -S --needed --noconfirm i3-wm i3status dmenu xterm dbus ;;
+    kde) pacman -S --needed --noconfirm plasma-desktop konsole dbus ;;
+    gnome) pacman -S --needed --noconfirm gnome gnome-terminal dbus ;;
+  esac
+elif command -v apk >/dev/null 2>&1; then
+  apk update
+  case \"\$DESKTOP_ID\" in
+    xfce) apk add xfce4 xfce4-terminal dbus ;;
+    lxqt) apk add lxqt-desktop qterminal dbus || apk add lxqt qterminal dbus ;;
+    lxde) apk add lxde lxterminal dbus ;;
+    mate) apk add mate-desktop-environment mate-terminal dbus || apk add mate-desktop mate-session-manager mate-panel mate-terminal dbus ;;
+    openbox) apk add openbox tint2 xterm dbus ;;
+    i3) apk add i3wm i3status dmenu xterm dbus ;;
+    kde) apk add plasma-desktop konsole dbus ;;
+    gnome) apk add gnome-shell gnome-session gnome-terminal dbus ;;
+  esac
+elif command -v dnf >/dev/null 2>&1; then
+  case \"\$DESKTOP_ID\" in
+    xfce) dnf -y install @xfce-desktop-environment dbus-x11 || dnf -y group install \"Xfce Desktop\" || dnf -y install xfce4-session xfce4-panel xfce4-settings xfce4-terminal dbus-x11 ;;
+    lxqt) dnf -y group install \"LXQt Desktop\" || dnf -y install lxqt-session lxqt-panel pcmanfm-qt qterminal dbus-x11 ;;
+    lxde) dnf -y group install \"LXDE Desktop\" || dnf -y install lxde-common lxsession openbox lxterminal dbus-x11 ;;
+    mate) dnf -y group install \"MATE Desktop\" || dnf -y install mate-session-manager mate-panel mate-terminal dbus-x11 ;;
+    openbox) dnf -y install openbox tint2 xterm dbus-x11 ;;
+    i3) dnf -y install i3 i3status dmenu xterm dbus-x11 ;;
+    kde) dnf -y group install \"KDE Plasma Workspaces\" || dnf -y install plasma-workspace plasma-desktop konsole dbus-x11 ;;
+    gnome) dnf -y group install \"GNOME Desktop Environment\" || dnf -y install gnome-session gnome-shell gnome-terminal dbus-x11 ;;
+  esac
+elif command -v zypper >/dev/null 2>&1; then
+  zypper --non-interactive refresh
+  case \"\$DESKTOP_ID\" in
+    xfce) zypper --non-interactive install -t pattern xfce || zypper --non-interactive install xfce4-session xfce4-panel xfce4-settings xfce4-terminal dbus-1-x11 ;;
+    lxqt) zypper --non-interactive install -t pattern lxqt || zypper --non-interactive install lxqt-session lxqt-panel pcmanfm-qt qterminal dbus-1-x11 ;;
+    lxde) zypper --non-interactive install -t pattern lxde || zypper --non-interactive install lxsession openbox lxterminal dbus-1-x11 ;;
+    mate) zypper --non-interactive install -t pattern mate || zypper --non-interactive install mate-session-manager mate-panel mate-terminal dbus-1-x11 ;;
+    openbox) zypper --non-interactive install openbox tint2 xterm dbus-1-x11 ;;
+    i3) zypper --non-interactive install i3 i3status dmenu xterm dbus-1-x11 ;;
+    kde) zypper --non-interactive install -t pattern kde_plasma || zypper --non-interactive install plasma5-session plasma5-workspace konsole dbus-1-x11 ;;
+    gnome) zypper --non-interactive install -t pattern gnome || zypper --non-interactive install gnome-session gnome-shell gnome-terminal dbus-1-x11 ;;
+  esac
+else
+  echo \"Gerenciador de pacotes não reconhecido para instalação automática.\" >&2
+  exit 65
+fi
+command -v \"\$LAUNCHER\" >/dev/null 2>&1
+EOF
+}
+
+linux_instalar_desktop_na_distro() {
+    local alias="${1:-}" desktop="${2:-}" gerenciador guest_script nome launcher aviso
+    [ -n "$alias" ] && [ -n "$desktop" ] || return 1
+    nome="$(linux_desktop_nome "$desktop")"
+    launcher="$(linux_desktop_launcher "$desktop")"
     gerenciador="$(linux_detectar_gerenciador_distro "$alias" 2>/dev/null || printf 'desconhecido')"
     [ -n "$gerenciador" ] || gerenciador="desconhecido"
 
-    if linux_xfce_instalado "$alias"; then
-        cabecalho_tela "✅ XFCE já instalado" "$alias"
+    if linux_desktop_instalado "$alias" "$desktop"; then
+        cabecalho_tela "✅ $nome já instalado" "$alias"
         caixa_simples "Desktop encontrado" \
             "Distribuição: $alias" \
             "Gerenciador: $(linux_descrever_gerenciador_distro "$gerenciador")" \
-            "xfce4-session já está disponível." \
+            "Inicializador: $launcher" \
             "Nenhuma reinstalação é necessária."
-        linux_log "XFCE já presente em $alias; reinstalação evitada"
+        linux_log "$nome já presente em $alias; reinstalação evitada"
         return 0
     fi
 
     if [ "$gerenciador" = "desconhecido" ]; then
-        cabecalho_tela "⚠ XFCE não automatizado" "$alias"
+        cabecalho_tela "⚠ Desktop não automatizado" "$alias"
         caixa_simples "Gerenciador não reconhecido" \
             "O Manager não encontrou apt, pacman, apk, dnf ou zypper nesta distribuição." \
             "A instalação automática foi interrompida para evitar comandos incompatíveis."
@@ -709,85 +920,108 @@ linux_instalar_xfce_na_distro() {
         return 65
     fi
 
-    cabecalho_tela "🪟 Preparando XFCE" "$alias"
-    caixa_simples "Distribuição" \
-        "Alias: $alias" \
+    linux_avaliar_aparelho
+    aviso="$(linux_desktop_aviso_perfil "$desktop")"
+    cabecalho_tela "🪟 Preparando $nome" "$alias"
+    caixa_simples "Ambiente gráfico" \
+        "Distribuição: $alias" \
+        "Desktop: $nome" \
         "Gerenciador: $(linux_descrever_gerenciador_distro "$gerenciador")" \
-        "Estado do XFCE: não instalado"
-    confirmar_acao "Instalar XFCE dentro de '$alias'?" || return 2
+        "Perfil do aparelho: ${LINUX_PROFILE_ICON} ${LINUX_PROFILE}" \
+        "$aviso"
+    if [ "$desktop" = "gnome" ]; then
+        caixa_simples "⚠ Compatibilidade GNOME" \
+            "GNOME foi mantido como opção avançada." \
+            "Algumas funções dependem de serviços do sistema que não existem em PRoot." \
+            "Se houver problemas, prefira XFCE, LXQt ou MATE."
+    fi
+    confirmar_acao "Instalar $nome dentro de '$alias'?" || return 2
 
-    guest_script='set -e
-if command -v apt-get >/dev/null 2>&1; then
-  export DEBIAN_FRONTEND=noninteractive
-  apt-get update
-  apt-get install -y xfce4 dbus-x11
-elif command -v pacman >/dev/null 2>&1; then
-  pacman -Sy --noconfirm xfce4 xfce4-goodies dbus
-elif command -v apk >/dev/null 2>&1; then
-  apk update
-  apk add xfce4 xfce4-terminal dbus
-elif command -v dnf >/dev/null 2>&1; then
-  dnf -y install @xfce-desktop-environment dbus-x11 \
-    || dnf -y group install "Xfce Desktop" \
-    || dnf -y group install "Xfce" \
-    || dnf -y install xfce4-session xfce4-panel xfce4-settings xfce4-terminal dbus-x11
-elif command -v zypper >/dev/null 2>&1; then
-  zypper --non-interactive refresh
-  zypper --non-interactive install -t pattern xfce \
-    || zypper --non-interactive install xfce4-session xfce4-panel xfce4-settings xfce4-terminal dbus-1-x11
-else
-  echo "Gerenciador de pacotes não reconhecido para instalação automática do XFCE." >&2
-  exit 65
-fi
-command -v xfce4-session >/dev/null 2>&1'
-
-    cabecalho_tela "🪟 Instalando XFCE" "A instalação dentro do Linux pode ser demorada"
+    guest_script="$(linux_desktop_guest_script "$desktop")" || return 1
+    cabecalho_tela "🪟 Instalando $nome" "A instalação dentro do Linux pode ser demorada"
     caixa_simples "Instalação inteligente" \
         "Distribuição: $alias" \
+        "Desktop: $nome" \
         "Gerenciador: $(linux_descrever_gerenciador_distro "$gerenciador")" \
-        "O Manager verificará xfce4-session ao terminar."
+        "O Manager validará '$launcher' ao terminar." \
+        "Não feche o Termux durante esta etapa."
     if proot-distro login "$alias" -- /bin/sh -lc "$guest_script" 2>&1 | tee -a "$LINUX_LOG"; then
-        if linux_xfce_instalado "$alias"; then
-            linux_log "XFCE instalado e validado em $alias via $gerenciador"
-            ok "XFCE instalado e validado em '$alias'."
+        if linux_desktop_instalado "$alias" "$desktop"; then
+            linux_log "$nome instalado e validado em $alias via $gerenciador"
+            ok "$nome instalado e validado em '$alias'."
             return 0
         fi
-        error "A instalação terminou, mas xfce4-session não foi encontrado."
-        linux_log "instalação XFCE terminou sem xfce4-session em $alias via $gerenciador"
+        error "A instalação terminou, mas '$launcher' não foi encontrado."
+        linux_log "instalação $nome terminou sem $launcher em $alias via $gerenciador"
         return 1
     fi
 
-    error "Não foi possível instalar XFCE automaticamente."
+    error "Não foi possível instalar $nome automaticamente."
     caixa_simples "Compatibilidade" \
         "Gerenciador detectado: $(linux_descrever_gerenciador_distro "$gerenciador")" \
-        "APT, Pacman, APK, DNF e Zypper são reconhecidos." \
-        "Algumas distribuições podem exigir repositórios adicionais para disponibilizar o XFCE." \
-        "Consulte o log para ver qual pacote ou grupo não foi encontrado."
-    linux_log "falha ao instalar XFCE em $alias via $gerenciador"
+        "O pacote ou grupo pode ter outro nome nesta versão da distribuição." \
+        "Consulte o log para ver qual pacote não foi encontrado." \
+        "XFCE e LXQt são as opções com melhor cobertura automática."
+    linux_log "falha ao instalar $nome em $alias via $gerenciador"
     return 1
 }
 
-linux_instalar_desktop_xfce() {
+linux_instalar_xfce_na_distro() {
+    linux_instalar_desktop_na_distro "${1:-}" xfce
+}
+
+linux_instalar_ambiente_grafico() {
     linux_garantir_proot_distro || { pause; return 1; }
     linux_avaliar_aparelho
-    cabecalho_tela "🪟 Instalar XFCE" "Desktop gráfico dentro da distribuição"
+    cabecalho_tela "🪟 Instalar ambiente gráfico" "Escolha o desktop para a distribuição"
     caixa_simples "Perfil do aparelho" \
         "${LINUX_PROFILE_ICON} ${LINUX_PROFILE}" \
-        "$LINUX_PROFILE_RECOMMEND"
-    [ "$LINUX_PROFILE" = "BÁSICO" ] && caixa_simples "⚠ Atenção" \
-        "Neste aparelho, um desktop gráfico pode ficar lento ou encerrar por falta de memória." \
-        "O modo terminal é mais indicado. Você ainda pode continuar se quiser testar."
-    linux_selecionar_instalada "🪟 Instalar XFCE" "Escolha a distribuição onde o desktop será instalado" || return 0
-
-    linux_instalar_xfce_na_distro "$LINUX_DISTRO_ALIAS"
+        "$LINUX_PROFILE_RECOMMEND" \
+        "Você pode instalar mais de um ambiente na mesma distribuição."
+    linux_selecionar_instalada "🪟 Instalar ambiente gráfico" "Escolha a distribuição" || return 0
+    linux_escolher_desktop "🖥️ Escolher ambiente gráfico" "$LINUX_DISTRO_ALIAS" || return 0
+    linux_instalar_desktop_na_distro "$LINUX_DISTRO_ALIAS" "$LINUX_DESKTOP_ID"
     local rc=$?
     [ "$rc" -eq 2 ] || pause
     return 0
 }
 
-linux_iniciar_xfce() {
+linux_instalar_desktop_xfce() {
+    linux_instalar_ambiente_grafico
+}
+
+linux_selecionar_desktop_instalado() {
+    local alias="${1:-}" titulo="${2:-🖥️ Ambiente instalado}" id nome indice=0
+    local -a ids=() itens=()
+    while IFS= read -r id; do
+        [ -n "$id" ] || continue
+        ids+=("$id")
+        indice=$((indice + 1))
+        nome="$(linux_desktop_nome "$id")"
+        itens+=("$indice|🖥️|$nome|$(linux_desktop_descricao "$id")")
+    done < <(linux_desktops_instalados "$alias" 2>/dev/null || true)
+    [ ${#ids[@]} -gt 0 ] || return 1
+    if [ ${#ids[@]} -eq 1 ]; then
+        LINUX_DESKTOP_ID="${ids[0]}"
+        LINUX_DESKTOP_NOME="$(linux_desktop_nome "$LINUX_DESKTOP_ID")"
+        LINUX_DESKTOP_LAUNCHER="$(linux_desktop_launcher "$LINUX_DESKTOP_ID")"
+        return 0
+    fi
+    menu_unificado "$titulo" "$alias • escolha qual iniciar" \
+        "[0] Voltar  •  [1–${#ids[@]}] Selecionar" "${itens[@]}"
+    ler_opcao
+    [[ "$RESPOSTA_MENU" =~ ^[0-9]+$ ]] || return 2
+    [ "$RESPOSTA_MENU" -eq 0 ] && return 2
+    [ "$RESPOSTA_MENU" -ge 1 ] && [ "$RESPOSTA_MENU" -le ${#ids[@]} ] || return 2
+    LINUX_DESKTOP_ID="${ids[$((RESPOSTA_MENU - 1))]}"
+    LINUX_DESKTOP_NOME="$(linux_desktop_nome "$LINUX_DESKTOP_ID")"
+    LINUX_DESKTOP_LAUNCHER="$(linux_desktop_launcher "$LINUX_DESKTOP_ID")"
+    return 0
+}
+
+linux_iniciar_desktop() {
     linux_garantir_proot_distro || { pause; return 1; }
-    cabecalho_tela "🖥️ Iniciar desktop Linux" "Termux:X11 + XFCE"
+    cabecalho_tela "🖥️ Iniciar desktop Linux" "Termux:X11 + ambiente gráfico"
     if ! linux_x11_companion_instalado; then
         warn "O companion termux-x11 não está instalado."
         caixa_simples "Como corrigir" "Abra Termux:X11 > Instalar componentes do X11."
@@ -802,18 +1036,19 @@ linux_iniciar_xfce() {
     fi
 
     linux_selecionar_instalada "🖥️ Iniciar desktop Linux" "Escolha a distribuição para o desktop" || return 0
-
-    if ! linux_xfce_instalado "$LINUX_DISTRO_ALIAS"; then
+    local instalados
+    instalados="$(linux_desktops_instalados_resumo "$LINUX_DISTRO_ALIAS")"
+    if [ "$instalados" = "nenhum" ]; then
         local gerenciador
         gerenciador="$(linux_detectar_gerenciador_distro "$LINUX_DISTRO_ALIAS" 2>/dev/null || printf 'desconhecido')"
-        cabecalho_tela "⚠ XFCE não instalado" "$LINUX_DISTRO_ALIAS"
-        caixa_simples "Desktop ausente" \
+        cabecalho_tela "⚠ Nenhum desktop instalado" "$LINUX_DISTRO_ALIAS"
+        caixa_simples "Ambiente gráfico ausente" \
             "Distribuição: $LINUX_DISTRO_ALIAS" \
             "Gerenciador: $(linux_descrever_gerenciador_distro "$gerenciador")" \
-            "xfce4-session não foi encontrado." \
-            "O Manager pode instalar o XFCE antes de abrir o Termux:X11."
-        if confirmar_acao "Instalar XFCE agora?" "s"; then
-            linux_instalar_xfce_na_distro "$LINUX_DISTRO_ALIAS"
+            "Você pode escolher XFCE, LXQt, LXDE, MATE, Openbox, i3, KDE ou GNOME."
+        if confirmar_acao "Escolher e instalar um ambiente agora?" "s"; then
+            linux_escolher_desktop "🖥️ Escolher ambiente gráfico" "$LINUX_DISTRO_ALIAS" || return 0
+            linux_instalar_desktop_na_distro "$LINUX_DISTRO_ALIAS" "$LINUX_DESKTOP_ID"
             local rc=$?
             if [ "$rc" -ne 0 ]; then
                 [ "$rc" -eq 2 ] || pause
@@ -822,31 +1057,41 @@ linux_iniciar_xfce() {
         else
             return 0
         fi
+    else
+        linux_selecionar_desktop_instalado "$LINUX_DISTRO_ALIAS" "🖥️ Ambientes instalados" || return 0
     fi
 
-    cabecalho_tela "🖥️ Iniciar desktop Linux" "Termux:X11 + XFCE"
+    local desktop="$LINUX_DESKTOP_ID" nome="$LINUX_DESKTOP_NOME" launcher="$LINUX_DESKTOP_LAUNCHER"
+    cabecalho_tela "🖥️ Iniciar desktop Linux" "Termux:X11 + $nome"
     caixa_simples "Sessão gráfica" \
         "Distribuição: $LINUX_DISTRO_ALIAS" \
-        "XFCE: instalado e verificado" \
+        "Desktop: $nome" \
+        "Inicializador: $launcher" \
         "Display: :1" \
         "O Manager compartilhará /tmp com a distribuição para o X11." \
-        "Feche a sessão do XFCE para retornar ao Manager."
-    confirmar_acao "Iniciar o desktop agora?" "s" || return 0
+        "Feche a sessão gráfica para retornar ao Manager."
+    confirmar_acao "Iniciar $nome agora?" "s" || return 0
 
     pkill -f 'termux-x11 :1' 2>/dev/null || true
     XDG_RUNTIME_DIR="${TMPDIR:-$PREFIX/tmp}" termux-x11 :1 >/dev/null 2>&1 &
     sleep 1
     command -v am >/dev/null 2>&1 && am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity >/dev/null 2>&1 || true
-    linux_log "sessão X11 iniciada para $LINUX_DISTRO_ALIAS"
+    linux_log "sessão X11 iniciada para $LINUX_DISTRO_ALIAS desktop=$desktop"
 
-    local session_cmd='export DISPLAY=:1; export XDG_RUNTIME_DIR=/tmp; if command -v dbus-launch >/dev/null 2>&1; then exec dbus-launch --exit-with-session xfce4-session; else exec xfce4-session; fi'
+    local session_cmd
+    session_cmd="export DISPLAY=:1; export XDG_RUNTIME_DIR=/tmp; if command -v dbus-launch >/dev/null 2>&1; then exec dbus-launch --exit-with-session '$launcher'; else exec '$launcher'; fi"
     if ! proot-distro login "$LINUX_DISTRO_ALIAS" --shared-tmp -- /bin/sh -lc "$session_cmd"; then
         error "A sessão gráfica terminou com erro."
         caixa_simples "Dicas" \
-            "O XFCE foi verificado antes da abertura da sessão." \
-            "Se aparecer tela preta, consulte a opção Diagnóstico X11 no menu."
+            "$nome foi verificado antes da abertura da sessão." \
+            "Se aparecer tela preta, consulte Diagnóstico X11." \
+            "Ambientes pesados como KDE/GNOME podem exigir mais memória."
         pause
     fi
+}
+
+linux_iniciar_xfce() {
+    linux_iniciar_desktop
 }
 
 linux_parar_x11() {
@@ -886,8 +1131,8 @@ menu_termux_x11() {
             "1|📋|Status|Companion: $companion • App: $app" \
             "2|📦|Instalar componentes|x11-repo + termux-x11-nightly" \
             "3|📲|Baixar aplicativo Android|APK oficial nightly" \
-            "4|🪟|Instalar XFCE na distro|Desktop leve dentro do Linux" \
-            "5|▶️|Iniciar desktop|Abrir XFCE pelo Termux:X11" \
+            "4|🪟|Ambientes gráficos|XFCE, LXQt, LXDE, MATE, Openbox, i3, KDE e GNOME" \
+            "5|▶️|Iniciar desktop|Escolher um ambiente instalado e abrir no X11" \
             "6|⏹️|Parar sessão gráfica|Encerrar servidor X11" \
             "7|🩺|Diagnóstico X11|Tela preta, cores e lentidão"
         ler_opcao
@@ -895,8 +1140,8 @@ menu_termux_x11() {
             1) linux_status_x11 ;;
             2) linux_instalar_x11_companion ;;
             3) linux_baixar_x11_apk ;;
-            4) linux_instalar_desktop_xfce ;;
-            5) linux_iniciar_xfce ;;
+            4) linux_instalar_ambiente_grafico ;;
+            5) linux_iniciar_desktop ;;
             6) linux_parar_x11 ;;
             7) linux_diagnostico_x11 ;;
             0) return ;;

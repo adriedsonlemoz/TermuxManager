@@ -94,7 +94,7 @@ ajuda_estrutura() {
 
 ajuda_menus() {
     cabecalho_tela "📋 Funções do menu" "Acesso direto às funções principais"
-    caixa_simples "Menu principal"         "Gerenciar projetos: abrir, testar e organizar."         "Em execução: processos ativos, portas, logs e parada."         "Importar projeto: pasta, arquivos ou ZIP de Downloads."         "Linux no celular: PRoot, distribuições, Termux:X11 e XFCE."         "Ambiente e ferramentas: pacotes, Termux e diagnóstico."         "Atualizar Manager: GitHub main, ZIP local ou módulo."         "Configurações: aparência, caminhos, execução e manutenção."         "Ajuda e Sobre: manual, versão, changelog e desenvolvedor."
+    caixa_simples "Menu principal"         "Gerenciar projetos: abrir, testar e organizar."         "Em execução: processos ativos, portas, logs e parada."         "Importar projeto: pasta, arquivos ou ZIP de Downloads."         "Linux no celular: PRoot, distribuições, Termux:X11 e ambientes gráficos."         "Ambiente e ferramentas: pacotes, Termux e diagnóstico."         "Atualizar Manager: GitHub main, ZIP local ou módulo."         "Configurações: aparência, caminhos, execução e manutenção."         "Ajuda e Sobre: manual, versão, changelog e desenvolvedor."
     pause
 }
 

@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.81  
+**Versão atual:** 1.0.82  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -43,7 +43,7 @@ Ao executar frontend + backend juntos, o Manager usa um painel único com quatro
 - abertura automática do navegador;
 - instalação e inventário de ferramentas do Termux;
 - instalação e gerenciamento de distribuições Linux sem root com `proot-distro`;
-- configuração assistida do Termux:X11 e desktop XFCE;
+- configuração assistida do Termux:X11 com múltiplos ambientes gráficos;
 - diagnóstico de RAM, CPU e espaço com orientação de desempenho antes de usar Linux gráfico;
 - configuração completa e limpeza segura do Fish Shell;
 - atalhos globais `manager` e `mm`;
@@ -193,10 +193,13 @@ O submenu permite:
 - resetar/reinstalar ou remover uma distribuição com confirmações reforçadas;
 - instalar `x11-repo` e `termux-x11-nightly`;
 - baixar o APK oficial nightly do Termux:X11 para Downloads e abrir o instalador do Android;
-- instalar XFCE automaticamente em distribuições com `apt`, `pacman`, `apk`, `dnf` ou `zypper`;
-- detectar se o XFCE já está instalado e evitar reinstalações desnecessárias;
-- ao iniciar o desktop, oferecer instalar o XFCE automaticamente quando `xfce4-session` estiver ausente;
-- iniciar o XFCE usando Termux:X11 e `--shared-tmp`;
+- escolher entre **XFCE, LXQt, LXDE, MATE, Openbox, i3, KDE Plasma e GNOME**;
+- classificar cada ambiente como muito leve, leve, médio, pesado ou muito pesado e destacar os mais indicados para o perfil do aparelho;
+- instalar ambientes gráficos automaticamente em distribuições com `apt`, `pacman`, `apk`, `dnf` ou `zypper`, usando alternativas de pacote/grupo quando necessário;
+- detectar os ambientes já instalados e evitar reinstalações desnecessárias;
+- permitir **mais de um desktop na mesma distribuição** e escolher qual iniciar;
+- iniciar o desktop selecionado usando Termux:X11 e `--shared-tmp`;
+- tratar KDE Plasma e GNOME como opções avançadas, mostrando avisos de consumo e limitações do PRoot antes da instalação;
 - encerrar a sessão X11 e consultar orientações para tela preta, cores trocadas ou lentidão.
 
 O perfil de desempenho é conservador. Em aparelhos com pouca RAM ou pouco armazenamento, o Manager avisa que uma interface gráfica pode apresentar lentidão, encerramentos ou travamentos e recomenda priorizar o modo terminal. O usuário ainda pode continuar se quiser testar.
@@ -204,6 +207,8 @@ O perfil de desempenho é conservador. Em aparelhos com pouca RAM ou pouco armaz
 Antes de baixar uma distribuição do Docker Hub, o Manager também traduz a arquitetura do Termux para a arquitetura OCI correspondente (`aarch64 → arm64`, `arm → arm`, `x86_64 → amd64`, `i686 → 386` e `riscv64 → riscv64`) e consulta as arquiteturas publicadas para a tag escolhida. O resultado aparece como **Compatível**, **Não confirmado** ou **Incompatível nativamente**. Quando a imagem é confirmada como incompatível, o download é bloqueado para evitar desperdício de dados e armazenamento. Se a consulta não puder ser confirmada, o usuário ainda pode prosseguir e o `proot-distro` fará a validação durante a instalação. As consultas bem-sucedidas ficam em cache local por algumas horas para evitar chamadas repetidas.
 
 O Termux:X11 possui duas partes: o pacote companion dentro do Termux e o aplicativo Android. O Manager instala automaticamente a parte do Termux e pode baixar o APK oficial, mas a confirmação final de instalação continua sendo feita pelo Android.
+
+A recomendação do desktop acompanha o perfil calculado pelo Manager: aparelhos básicos priorizam LXDE/Openbox/i3; intermediários destacam XFCE/LXQt; aparelhos com mais margem recebem XFCE/LXQt/MATE como opções recomendadas e podem testar KDE Plasma. GNOME continua disponível como opção avançada, pois costuma depender mais de serviços de sistema que não existem normalmente em PRoot.
 
 ## Importação de projetos
 
@@ -320,10 +325,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.81
-Tag: v1.0.81
-Release: Manager 1.0.81
-Pacote único: TermuxManager-v1.0.81.zip
+Versão: 1.0.82
+Tag: v1.0.82
+Release: Manager 1.0.82
+Pacote único: TermuxManager-v1.0.82.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 
