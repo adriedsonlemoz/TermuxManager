@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.83] - 2026-09-23
+
+### Adicionado
+- Novo fluxo **Meus Linux**: a lista de distribuições instaladas agora mostra nome do sistema, estado, saúde, tamanho atual, arquitetura e desktops detectados.
+- Cada distribuição ganhou um painel próprio com ações para **iniciar terminal**, **abrir desktop/X11**, **atualizar o sistema**, **criar backup**, **ver informações completas**, **encerrar sessões**, **reparar/reinstalar** e **remover**.
+- Detecção local de versão via `/etc/os-release`, imagem/arquitetura via `manifest.json`, gerenciador de pacotes e ambientes gráficos presentes no rootfs.
+- Backup de uma distro diretamente para Downloads usando `proot-distro backup` e encerramento seguro de sessões usando `proot-distro kill` quando disponível.
+
+### Corrigido
+- A instalação de novas distros agora passa explicitamente a arquitetura do Termux para `proot-distro install` (`--architecture`, com fallback compatível), reduzindo o risco de instalar binários de outra arquitetura.
+- Após a instalação, o Manager executa um teste real de `/bin/sh`; uma distro que falhar não é apresentada silenciosamente como pronta.
+- **Reparar/reinstalar** usa a imagem original registrada e recria o container explicitamente na arquitetura atual do Termux, tratando casos como o `Exec format error` observado no Alpine.
+
+### Otimizado
+- O cálculo do tamanho de cada rootfs usa cache curto, evitando repetir `du` em toda atualização do menu.
+- A navegação do módulo Linux foi simplificada para **Meus Linux**, **Instalar novo Linux**, **Termux:X11**, **Compatibilidade** e **Status**; iniciar, atualizar, backup, reparar e remover ficam dentro da distro selecionada.
+
 ## [1.0.82] - 2026-09-23
 
 ### Adicionado

@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.82  
+**Versão atual:** 1.0.83  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -178,7 +178,11 @@ Nenhuma função foi removida; apenas as funções relacionadas passaram a ficar
 
 A interface de Linux prioriza uso leigo: distribuições instaladas são detectadas automaticamente e todas as ações principais usam **seleção numerada**, sem exigir que o usuário memorize aliases. A instalação oferece Ubuntu 24.04, Debian 12, Alpine, Fedora, openSUSE e Rocky Linux como atalhos, além de pesquisa opcional no Docker Hub. Referências OCI com versão, como `ubuntu:24.04`, são aceitas corretamente.
 
-Quando nenhuma distribuição estiver instalada, **Iniciar Linux**, reparo, remoção e funções de desktop informam isso e oferecem abrir a instalação, em vez de pedir um alias inexistente.
+A área **Meus Linux** centraliza as distribuições já instaladas. A lista mostra nome do sistema, estado da sessão, saúde, arquitetura, tamanho atual e desktops detectados. Ao selecionar uma distro, o Manager abre um painel próprio com **Iniciar terminal**, **Desktop/X11**, **Atualizar sistema**, **Criar backup**, **Informações completas**, **Encerrar sessões**, **Reparar/reinstalar** e **Remover**.
+
+O tamanho do rootfs é medido localmente e fica em cache curto para evitar percorrer milhares de arquivos a cada abertura do menu. A saúde também é testada com `/bin/sh`; distribuições que falham ao iniciar aparecem como **Problema** em vez de serem tratadas como normais.
+
+Quando nenhuma distribuição estiver instalada, **Meus Linux** oferece abrir a instalação imediatamente, em vez de pedir um alias inexistente.
 
 Em **Linux no celular**, acessível diretamente pelo menu principal, o Manager pode preparar uma distribuição Linux sem exigir root. O fluxo usa o `proot-distro` instalado pelo próprio Termux e consulta dinamicamente a lista de distribuições disponíveis, em vez de manter uma lista fixa no código.
 
@@ -186,10 +190,15 @@ O submenu permite:
 
 - analisar RAM, CPU, arquitetura, Android e espaço livre antes da instalação;
 - verificar **antes do download** se a imagem selecionada publica uma variante OCI compatível com a arquitetura do aparelho;
+- forçar explicitamente a arquitetura escolhida no `proot-distro install` e executar um teste pós-instalação para evitar containers com `Exec format error`;
 - classificar o aparelho em perfil **Básico**, **Intermediário** ou **Desktop**, sempre como estimativa orientativa;
 - instalar `proot-distro` quando necessário;
 - listar e instalar distribuições disponíveis;
-- iniciar uma distribuição em modo terminal;
+- administrar cada distro por um painel próprio com tamanho, arquitetura, imagem de origem, estado, saúde, gerenciador de pacotes e desktops instalados;
+- iniciar uma distribuição em modo terminal ou desktop;
+- atualizar os pacotes do sistema usando APT, Pacman, APK, DNF ou Zypper;
+- criar backup completo em Downloads pelo `proot-distro backup`;
+- encerrar sessões ativas pelo `proot-distro kill`;
 - resetar/reinstalar ou remover uma distribuição com confirmações reforçadas;
 - instalar `x11-repo` e `termux-x11-nightly`;
 - baixar o APK oficial nightly do Termux:X11 para Downloads e abrir o instalador do Android;
@@ -325,10 +334,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.82
-Tag: v1.0.82
-Release: Manager 1.0.82
-Pacote único: TermuxManager-v1.0.82.zip
+Versão: 1.0.83
+Tag: v1.0.83
+Release: Manager 1.0.83
+Pacote único: TermuxManager-v1.0.83.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

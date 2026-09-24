@@ -46,6 +46,20 @@ grep -Fq 'linux_desktop_instalado' "$LINUX"
 grep -Fq 'Escolher e instalar um ambiente agora?' "$LINUX"
 grep -Fq 'linux_instalar_ambiente_grafico' "$LINUX"
 
+grep -Fq 'linux_meus_linux()' "$LINUX"
+grep -Fq 'menu_linux_distro()' "$LINUX"
+grep -Fq 'linux_atualizar_distro()' "$LINUX"
+grep -Fq 'linux_backup_distro()' "$LINUX"
+grep -Fq 'linux_exibir_info_distro()' "$LINUX"
+grep -Fq 'linux_distro_tamanho_kb()' "$LINUX"
+grep -Fq 'linux_testar_saude_distro()' "$LINUX"
+grep -Fq -- '--architecture "$arch_proot"' "$LINUX"
+grep -Fq 'Teste pós-instalação' "$LINUX"
+grep -Fq 'Exec format error' "$LINUX"
+grep -Fq 'Meus Linux' "$LINUX"
+grep -Fq 'Atualizar sistema' "$LINUX"
+grep -Fq 'Criar backup' "$LINUX"
+
 # Referências OCI atuais podem conter tag (:) e caminho (/).
 (
     set -u
@@ -165,4 +179,58 @@ grep -Fq 'linux_instalar_ambiente_grafico' "$LINUX"
     [[ "$script" == *'qterminal'* ]]
 )
 
-echo "OK: Linux no celular integra PRoot, Termux:X11, múltiplos desktops, perfil de hardware, arquitetura e confirmações de segurança."
+
+# Simula uma distro instalada para validar identificação, tamanho, arquitetura,
+# desktop, gerenciador, sessões e teste de saúde sem depender do Termux real.
+(
+    set -u
+    TMPROOT="/tmp/painel-test-linux-distro-$$"
+    trap 'rm -rf "$TMPROOT"' EXIT
+    PAINEL_DIR="$TMPROOT/painel"
+    LOG_DIR="$PAINEL_DIR/.logs"
+    HOME="$TMPROOT/home"
+    PREFIX="$TMPROOT/prefix"
+    TMPDIR="$TMPROOT/tmp"
+    mkdir -p "$PREFIX/var/lib/proot-distro/containers/debian/rootfs/etc" \
+             "$PREFIX/var/lib/proot-distro/containers/debian/rootfs/usr/bin" \
+             "$TMPDIR"
+    cat > "$PREFIX/var/lib/proot-distro/containers/debian/rootfs/etc/os-release" <<'EOF'
+PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
+VERSION_ID="12"
+EOF
+    cat > "$PREFIX/var/lib/proot-distro/containers/debian/manifest.json" <<'EOF'
+{
+  "image_ref": "debian:12",
+  "arch": "arm"
+}
+EOF
+    touch "$PREFIX/var/lib/proot-distro/containers/debian/rootfs/usr/bin/apt-get"
+    touch "$PREFIX/var/lib/proot-distro/containers/debian/rootfs/usr/bin/xfce4-session"
+    dd if=/dev/zero of="$PREFIX/var/lib/proot-distro/containers/debian/rootfs/sample.bin" bs=1024 count=4 status=none
+
+    source "$LINUX"
+    proot-distro() {
+        case "${1:-}" in
+            ps)
+                printf 'PID CONTAINER TYPE USER UPTIME COMMAND\n'
+                printf '123 debian login root 1m /bin/sh\n'
+                ;;
+            login)
+                printf '__TM_HEALTH_OK__'
+                ;;
+            *) return 0 ;;
+        esac
+    }
+    linux_coletar_info_distro debian true
+    [ "$LINUX_INFO_NAME" = "Debian GNU/Linux 12 (bookworm)" ]
+    [ "$LINUX_INFO_VERSION" = "12" ]
+    [ "$LINUX_INFO_ARCH" = "arm" ]
+    [ "$LINUX_INFO_IMAGE" = "debian:12" ]
+    [ "$LINUX_INFO_PM" = "apt" ]
+    [ "$LINUX_INFO_DESKTOPS" = "XFCE" ]
+    [ "$LINUX_INFO_SESSIONS" = "1" ]
+    [ "$LINUX_INFO_HEALTH" = "ok" ]
+    [ "$LINUX_INFO_SIZE_KB" -gt 0 ]
+)
+
+echo "OK: Linux no celular integra Meus Linux, identificação detalhada, saúde, tamanho, backup, atualização, PRoot, X11 e múltiplos desktops."
