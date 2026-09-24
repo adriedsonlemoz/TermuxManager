@@ -83,7 +83,17 @@ capturar_erro_manager() {
     local agora_epoch assinatura
     agora_epoch="$(date +%s 2>/dev/null || printf '0')"
     assinatura="${codigo}|${comando}"
-    if [ "$assinatura" = "${DIAGNOSTIC_LAST_SIGNATURE:-}" ] && [ "$agora_epoch" = "${DIAGNOSTIC_LAST_EPOCH:-0}" ]; then
+    # A propagação do trap ERR pode ocorrer somente depois que o primeiro
+    # relatório termina de ser gravado. Em aparelhos lentos isso atravessa a
+    # virada de segundo e a comparação anterior (mesmo segundo) gerava dois
+    # incidentes para a mesma falha. Considera duplicada a mesma assinatura
+    # registrada nos últimos 5 segundos.
+    local ultimo_epoch="${DIAGNOSTIC_LAST_EPOCH:-0}" delta_epoch=999
+    if [[ "$agora_epoch" =~ ^[0-9]+$ && "$ultimo_epoch" =~ ^[0-9]+$ ]]; then
+        delta_epoch=$((agora_epoch - ultimo_epoch))
+        [ "$delta_epoch" -lt 0 ] && delta_epoch=$(( -delta_epoch ))
+    fi
+    if [ "$assinatura" = "${DIAGNOSTIC_LAST_SIGNATURE:-}" ] && [ "$delta_epoch" -le 5 ]; then
         return 0
     fi
     DIAGNOSTIC_LAST_SIGNATURE="$assinatura"

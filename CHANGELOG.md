@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.0.78] - 2026-09-23
+
+### Melhorado
+- O menu principal voltou a exibir diretamente as funções mais usadas, mantendo apenas agrupamentos secundários para reduzir a quantidade de navegação entre submenus.
+- **Linux no celular** agora é uma opção direta do menu principal.
+- Também ficaram visíveis no primeiro nível: **Gerenciar projetos**, **Em execução**, **Importar projeto**, **Ambiente e ferramentas**, **Atualizar Manager**, **Configurações** e **Ajuda e Sobre**.
+- O cabeçalho do menu principal passou a mostrar um resumo curto com origem do Termux, quantidade de projetos e componentes ativos.
+- A consulta de atualização pela branch `main` agora exibe imediatamente estados de atividade como **Conectando ao GitHub**, **Carregando informações** e tempo de espera.
+- Downloads de atualização mostram quantidade recebida, velocidade média aproximada e tempo decorrido enquanto o arquivo é baixado.
+- Em conexões mais lentas, a tela informa explicitamente que o Manager continua aguardando o GitHub e que não está travado.
+
+### Corrigido
+- A captura de diagnóstico agora deduplica a mesma falha propagada pelo trap `ERR` mesmo quando a gravação do primeiro relatório atravessa alguns segundos, evitando dois incidentes para um único erro em aparelhos mais lentos.
+
+### Mantido
+- Todas as funções anteriores continuam disponíveis; a mudança reorganiza apenas a navegação.
+- A branch `main` continua sendo o canal estável de atualização.
+
 ## [1.0.77] - 2026-09-23
 
 ### Adicionado

@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.77  
+**Versão atual:** 1.0.78  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -138,14 +138,20 @@ Use **Code → Download ZIP** para baixar a cópia atual da branch `main`. Depoi
 
 ## Menu principal
 
-O menu principal foi reduzido a três áreas para evitar uma lista longa de opções:
+O menu principal usa um modelo híbrido: as funções mais usadas ficam visíveis diretamente e apenas as opções realmente secundárias permanecem agrupadas. Isso evita a sensação de ficar procurando funções em vários submenus.
 
-- **Projetos:** reúne **Meus projetos**, **Importar projeto** e **Em execução**.
-  - 🟢 servidor disponível: PID ativo e porta realmente respondendo;
-  - 🟡 processo ativo: PID existe, mas a porta não abriu ou o log indica falha;
-  - 🔴 encerrado: PID não existe mais e os metadados são limpos.
-- **Ambiente:** reúne **Instalar ferramentas**, **Ambiente Termux**, **Linux no celular** e **Diagnóstico rápido**.
-- **Manager:** reúne **Atualizar Manager**, **Configurações**, **Sobre** e **Ajuda**.
+As opções principais são:
+
+- **Gerenciar projetos:** abrir, testar e organizar os projetos detectados.
+- **Em execução:** visualizar processos, serviços e portas ativos.
+- **Importar projeto:** importar pasta, arquivo ou ZIP.
+- **Linux no celular:** acesso direto a distribuições, PRoot e Termux:X11.
+- **Ambiente e ferramentas:** instalação de ferramentas, manutenção do Termux e diagnóstico rápido.
+- **Atualizar Manager:** atualização pela branch `main`, ZIP local ou módulo individual.
+- **Configurações:** preferências e manutenção.
+- **Ajuda e Sobre:** manual, versão e informações do desenvolvedor.
+
+O cabeçalho também mostra um resumo curto da origem do Termux, quantidade de projetos e componentes ativos.
 
 ### Atualização direta pela branch `main`
 
@@ -164,11 +170,13 @@ Quando existe uma versão mais nova, o Manager:
 
 Se a consulta falhar ou a integridade do pacote não conferir, a instalação atual permanece intacta. A atualização por ZIP em Downloads continua disponível como alternativa.
 
+Durante a consulta ao GitHub, o Manager agora mantém uma tela de atividade visível com estados como **Conectando ao GitHub**, **Carregando informações**, **Baixando atualização** e **Validando pacote**. Em conexões lentas, o tempo de espera continua sendo atualizado e o download mostra quantidade baixada e velocidade média aproximada, reduzindo a impressão de travamento.
+
 Nenhuma função foi removida; apenas as funções relacionadas passaram a ficar agrupadas em submenus.
 
 ## Linux no celular
 
-Em **Ambiente → Linux no celular**, o Manager pode preparar uma distribuição Linux sem exigir root. O fluxo usa o `proot-distro` instalado pelo próprio Termux e consulta dinamicamente a lista de distribuições disponíveis, em vez de manter uma lista fixa no código.
+Em **Linux no celular**, acessível diretamente pelo menu principal, o Manager pode preparar uma distribuição Linux sem exigir root. O fluxo usa o `proot-distro` instalado pelo próprio Termux e consulta dinamicamente a lista de distribuições disponíveis, em vez de manter uma lista fixa no código.
 
 O submenu permite:
 
@@ -303,10 +311,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.77
-Tag: v1.0.77
-Release: Manager 1.0.77
-Pacote único: TermuxManager-v1.0.77.zip
+Versão: 1.0.78
+Tag: v1.0.78
+Release: Manager 1.0.78
+Pacote único: TermuxManager-v1.0.78.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

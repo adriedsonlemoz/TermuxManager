@@ -11,6 +11,11 @@ grep -Fq 'validar_manifesto_pacote_manager' "$UPDATER"
 grep -Fq 'GITHUB_REMOTE_CHANGELOG' "$UPDATER"
 grep -Fq 'TIPO="${ATUALIZACAO_TIPO:-completa}"' "$UPDATER"
 grep -Fq 'README.md CHANGELOG.md RELEASE_STANDARD.md MANIFEST.json' "$UPDATER"
+grep -Fq 'github_fetch_to_file()' "$UPDATER"
+grep -Fq 'Conectando ao GitHub...' "$UPDATER"
+grep -Fq 'Carregando informações...' "$UPDATER"
+grep -Fq 'Baixado:' "$UPDATER"
+grep -Fq 'Isso não é travamento.' "$UPDATER"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -32,7 +37,7 @@ EOF
 
 (
     set -u
-    MANAGER_VERSION="1.0.76"
+    MANAGER_VERSION="1.0.78"
     TERMUX_MANAGER_GITHUB_MANIFEST_URL="file://$TMP/MANIFEST.json"
     TERMUX_MANAGER_GITHUB_CHANGELOG_URL="file://$TMP/CHANGELOG.md"
     source "$UPDATER"

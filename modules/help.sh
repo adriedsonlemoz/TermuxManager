@@ -93,12 +93,8 @@ ajuda_estrutura() {
 }
 
 ajuda_menus() {
-    cabecalho_tela "📋 Funções do menu" "Três áreas principais"
-    caixa_simples "📁 Projetos"         "Meus projetos: listar, executar, copiar, GitHub, abrir e excluir."         "Importar projeto: pasta, arquivos ou ZIP diretamente de Downloads."         "Em execução: processos ativos, portas, logs e opções de parada."
-    echo
-    caixa_simples "🛠️ Ambiente"         "Instalar ferramentas: linguagens, editores, shells, bancos e utilitários."         "Ambiente Termux: atualização, armazenamento e manutenção."         "Linux no celular: proot-distro, distribuições, Termux:X11 e XFCE."         "Diagnóstico rápido: variante do Termux e ferramentas detectadas."
-    echo
-    caixa_simples "⚙️ Manager"         "Atualizar Manager: GitHub main, ZIP local ou módulo individual."         "Configurações: aparência, caminhos, execução, Fish e manutenção."         "Sobre e Ajuda: versão, ambiente, changelog e manual interno."
+    cabecalho_tela "📋 Funções do menu" "Acesso direto às funções principais"
+    caixa_simples "Menu principal"         "Gerenciar projetos: abrir, testar e organizar."         "Em execução: processos ativos, portas, logs e parada."         "Importar projeto: pasta, arquivos ou ZIP de Downloads."         "Linux no celular: PRoot, distribuições, Termux:X11 e XFCE."         "Ambiente e ferramentas: pacotes, Termux e diagnóstico."         "Atualizar Manager: GitHub main, ZIP local ou módulo."         "Configurações: aparência, caminhos, execução e manutenção."         "Ajuda e Sobre: manual, versão, changelog e desenvolvedor."
     pause
 }
 

@@ -227,18 +227,16 @@ menu_projetos_hub() {
 menu_ambiente_hub() {
     while true; do
         detectar_variante_termux
-        menu_unificado "🛠️ AMBIENTE" "Termux, Linux, ferramentas e diagnóstico" \
-            "[0] Voltar  •  [1–4] Selecionar" \
+        menu_unificado "🛠️ AMBIENTE E FERRAMENTAS" "Termux, pacotes e diagnóstico" \
+            "[0] Voltar  •  [1–3] Selecionar" \
             "1|🧰|Instalar ferramentas|Pacotes para desenvolvimento" \
             "2|🔧|Ambiente Termux|Atualização, armazenamento e manutenção" \
-            "3|🐧|Linux no celular|Distribuições, PRoot e Termux:X11" \
-            "4|🔎|Diagnóstico rápido|$(termux_origem_resumida) • verificar ambiente"
+            "3|🔎|Diagnóstico rápido|$(termux_origem_resumida) • verificar ambiente"
         ler_opcao
         case "$RESPOSTA_MENU" in
             1) menu_instalar_ferramentas ;;
             2) menu_ambiente_termux ;;
-            3) menu_linux_celular ;;
-            4) verificar_ambiente_termux ;;
+            3) verificar_ambiente_termux ;;
             0) return ;;
             *) warn "Opção inválida."; sleep 1 ;;
         esac
@@ -265,19 +263,57 @@ menu_manager_hub() {
     done
 }
 
+menu_ajuda_sobre_hub() {
+    while true; do
+        menu_unificado "❓ AJUDA E SOBRE" "Manual, versão e informações do Manager" \
+            "[0] Voltar  •  [1–2] Selecionar" \
+            "1|❓|Ajuda|Instalação, atualização e solução de problemas" \
+            "2|📘|Sobre|Versão, ambiente e desenvolvedor"
+        ler_opcao
+        case "$RESPOSTA_MENU" in
+            1) menu_ajuda ;;
+            2) menu_sobre_manager ;;
+            0) return ;;
+            *) warn "Opção inválida."; sleep 1 ;;
+        esac
+    done
+}
+
 menu_principal() {
     while true; do
         limpar_pidfiles_inativos
-        menu_unificado "🧰 MANAGER.SH — VERSÃO $MANAGER_VERSION" "Por $MANAGER_DEVELOPER" \
-            "[0] Sair  •  [1–3] Selecionar" \
-            "1|📁|Projetos|Gerenciar, importar e acompanhar" \
-            "2|🛠️|Ambiente|Ferramentas, Termux e diagnóstico" \
-            "3|⚙️|Manager|Atualização, configurações e ajuda"
+        detectar_variante_termux
+
+        local ativos=0 projetos=0 pf resumo_status
+        for pf in "$PID_DIR"/*.pid; do
+            [ -e "$pf" ] && pid_ativo "$pf" && ativos=$((ativos + 1))
+        done
+        if [ -d "$PROJETOS_DIR" ]; then
+            projetos="$(find "$PROJETOS_DIR" -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null | wc -l | tr -d ' ')"
+        fi
+        projetos="${projetos:-0}"
+        resumo_status="$(termux_origem_resumida) • Projetos: $projetos • Ativos: $ativos"
+
+        menu_unificado "🧰 MANAGER.SH — VERSÃO $MANAGER_VERSION" "$resumo_status" \
+            "[0] Sair  •  [1–8] Selecionar" \
+            "1|📁|Gerenciar projetos|Abrir, testar e organizar" \
+            "2|🚦|Em execução|$ativos componente(s) ativo(s)" \
+            "3|📦|Importar projeto|Pasta, arquivo ou ZIP" \
+            "4|🐧|Linux no celular|Distros, PRoot e Termux:X11" \
+            "5|🛠️|Ambiente e ferramentas|Termux, pacotes e diagnóstico" \
+            "6|🔄|Atualizar Manager|GitHub main ou arquivo local" \
+            "7|⚙️|Configurações|Preferências e manutenção" \
+            "8|❓|Ajuda e Sobre|Manual, versão e desenvolvedor"
         ler_opcao
         case "$RESPOSTA_MENU" in
-            1) menu_projetos_hub ;;
-            2) menu_ambiente_hub ;;
-            3) menu_manager_hub ;;
+            1) gerenciar_projetos ;;
+            2) menu_processos_ativos ;;
+            3) importar_projeto ;;
+            4) menu_linux_celular ;;
+            5) menu_ambiente_hub ;;
+            6) atualizar_manager_local ;;
+            7) menu_configuracoes ;;
+            8) menu_ajuda_sobre_hub ;;
             0) echo -e "${C_GREEN}Até mais!${C_RESET}"; exit 0 ;;
             *) warn "Opção inválida."; pause ;;
         esac
