@@ -679,36 +679,119 @@ linux_rotulo_curto_saude() {
     esac
 }
 
-linux_exibir_diagnostico_distro() {
-    local alias="${1:-}" forcar="${2:-false}" shell_exib loader_exib
+linux_exportar_diagnostico_distro() {
+    local alias="${1:-}" pasta carimbo slug destino shell_exib loader_exib
     [ -n "$alias" ] || return 1
-    linux_coletar_info_distro "$alias" "$forcar"
+    linux_coletar_info_distro "$alias" false
+    if ! resolver_downloads_dir >/dev/null 2>&1; then
+        cabecalho_tela "📥 Exportar diagnóstico" "$LINUX_INFO_NAME"
+        caixa_simples_wrap "Downloads indisponível"             "Não foi possível acessar a pasta Downloads."             "Execute termux-setup-storage e tente novamente."
+        pause
+        return 1
+    fi
+    pasta="${DOWNLOADS_DIR:-$HOME/storage/downloads}"
+    mkdir -p "$pasta" 2>/dev/null || true
+    [ -d "$pasta" ] || {
+        cabecalho_tela "📥 Exportar diagnóstico" "$LINUX_INFO_NAME"
+        caixa_simples_wrap "Destino indisponível"             "A pasta Downloads não está acessível no momento."
+        pause
+        return 1
+    }
+    carimbo="$(date '+%Y%m%d-%H%M%S')"
+    if declare -F sanitizar_nome_arquivo >/dev/null 2>&1; then
+        slug="$(sanitizar_nome_arquivo "$alias")"
+    else
+        slug="$(printf '%s' "$alias" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9._-]+/-/g; s/^-+|-+$//g; s/-+/-/g')"
+    fi
+    [ -n "$slug" ] || slug="linux"
+    destino="$pasta/linux-diagnostico-${slug}-${carimbo}.log"
     shell_exib="${LINUX_DIAG_SHELL_TARGET:-não localizado}"
     [ -n "${LINUX_DIAG_ROOTFS:-}" ] && shell_exib="${shell_exib#"$LINUX_DIAG_ROOTFS"}"
     loader_exib="${LINUX_DIAG_LOADER:-não identificado}"
-    cabecalho_tela "🔎 Diagnóstico Linux" "$LINUX_INFO_NAME"
-    caixa_simples "Resultado" \
-        "Saúde: ${LINUX_INFO_HEALTH_ICON} ${LINUX_INFO_HEALTH_LABEL}" \
-        "Código: ${LINUX_DIAG_CODE:-UNKNOWN}" \
-        "Motivo: ${LINUX_DIAG_REASON:-não identificado}" \
-        "Detalhe: ${LINUX_DIAG_DETAIL:-sem detalhe adicional}"
-    caixa_simples "Arquitetura" \
-        "Termux: ${LINUX_DIAG_HOST_ARCH:-desconhecida}" \
-        "Manifesto: ${LINUX_DIAG_MANIFEST_ARCH:-não informado}" \
-        "/bin/sh: ${LINUX_DIAG_SHELL_ARCH:-desconhecida}" \
-        "QEMU: ${LINUX_DIAG_QEMU:-não verificado}"
-    caixa_simples "Arquivos" \
-        "Shell: $shell_exib" \
-        "Loader: $loader_exib" \
-        "Loader no rootfs: ${LINUX_DIAG_LOADER_STATUS:-não verificado}" \
-        "Log: $(caminho_curto "$LINUX_LOG")"
-    if [ -n "${LINUX_INFO_HEALTH_ERROR:-}" ]; then
-        caixa_simples "Último erro" \
-            "$(printf '%s' "$LINUX_INFO_HEALTH_ERROR" | cut -c1-90)"
-    fi
+    {
+        printf 'Manager.sh — Diagnóstico Linux
+'
+        printf 'Gerado em: %s
+' "$(date '+%Y-%m-%d %H:%M:%S')"
+        printf 'Distribuição: %s
+' "$LINUX_INFO_NAME"
+        printf 'Alias: %s
+' "$alias"
+        printf 'Saúde: %s %s
+' "$LINUX_INFO_HEALTH_ICON" "$LINUX_INFO_HEALTH_LABEL"
+        printf 'Código: %s
+' "${LINUX_DIAG_CODE:-UNKNOWN}"
+        printf 'Motivo: %s
+' "${LINUX_DIAG_REASON:-não identificado}"
+        printf 'Detalhe: %s
+' "${LINUX_DIAG_DETAIL:-sem detalhe adicional}"
+        printf '
+[Arquitetura]
+'
+        printf 'Termux: %s
+' "${LINUX_DIAG_HOST_ARCH:-desconhecida}"
+        printf 'Manifesto: %s
+' "${LINUX_DIAG_MANIFEST_ARCH:-não informado}"
+        printf '/bin/sh: %s
+' "${LINUX_DIAG_SHELL_ARCH:-desconhecida}"
+        printf 'QEMU: %s
+' "${LINUX_DIAG_QEMU:-não verificado}"
+        printf '
+[Arquivos]
+'
+        printf 'Shell: %s
+' "$shell_exib"
+        printf 'Loader: %s
+' "$loader_exib"
+        printf 'Loader no rootfs: %s
+' "${LINUX_DIAG_LOADER_STATUS:-não verificado}"
+        printf '
+[Último erro]
+%s
+' "${LINUX_INFO_HEALTH_ERROR:-sem registro}"
+        printf '
+[Log do Linux]
+'
+        if [ -f "$LINUX_LOG" ]; then
+            tail -n 160 "$LINUX_LOG"
+        else
+            printf 'Arquivo de log não encontrado: %s
+' "$LINUX_LOG"
+        fi
+    } > "$destino"
+    cabecalho_tela "📥 Exportar diagnóstico" "$LINUX_INFO_NAME"
+    caixa_simples_wrap "Arquivo salvo"         "O diagnóstico foi copiado para Downloads."         "Arquivo: $(basename "$destino")"         "Local: $(caminho_curto "$destino")"
     pause
 }
 
+linux_exibir_diagnostico_distro() {
+    local alias="${1:-}" forcar="${2:-false}" shell_exib loader_exib escolha
+    [ -n "$alias" ] || return 1
+    while true; do
+        linux_coletar_info_distro "$alias" "$forcar"
+        forcar=false
+        shell_exib="${LINUX_DIAG_SHELL_TARGET:-não localizado}"
+        [ -n "${LINUX_DIAG_ROOTFS:-}" ] && shell_exib="${shell_exib#"$LINUX_DIAG_ROOTFS"}"
+        loader_exib="${LINUX_DIAG_LOADER:-não identificado}"
+        cabecalho_tela "🔎 Diagnóstico Linux" "$LINUX_INFO_NAME"
+        caixa_simples_wrap "Resultado"             "Saúde: ${LINUX_INFO_HEALTH_ICON} ${LINUX_INFO_HEALTH_LABEL}"             "Motivo: ${LINUX_DIAG_REASON:-não identificado}"             "Código: ${LINUX_DIAG_CODE:-UNKNOWN}"             "Detalhe: ${LINUX_DIAG_DETAIL:-sem detalhe adicional}"
+        caixa_simples_wrap "Arquitetura"             "Termux / manifesto / shell: ${LINUX_DIAG_HOST_ARCH:-?} / ${LINUX_DIAG_MANIFEST_ARCH:-?} / ${LINUX_DIAG_SHELL_ARCH:-?}"             "QEMU: ${LINUX_DIAG_QEMU:-não verificado}"
+        caixa_simples_wrap "Arquivos"             "Shell: $shell_exib"             "Loader: $loader_exib"             "Loader no rootfs: ${LINUX_DIAG_LOADER_STATUS:-não verificado}"             "Log: $(caminho_curto "$LINUX_LOG")"
+        if [ -n "${LINUX_INFO_HEALTH_ERROR:-}" ]; then
+            caixa_simples_wrap "Último erro"                 "${LINUX_INFO_HEALTH_ERROR}"
+        fi
+        rodape_atalhos "[0] Voltar  •  [1] Exportar log  •  [2] Testar novamente"
+        ui_buffer_flush
+        ler_opcao
+        escolha="$RESPOSTA_MENU"
+        case "$escolha" in
+            1) linux_exportar_diagnostico_distro "$alias" ;;
+            2) forcar=true ;;
+            0|"") tela_limpar; return 0 ;;
+            *) feedback_curto "Opção inválida." ;;
+        esac
+    done
+}
 linux_distro_sessoes_ativas() {
     local alias="${1:-}" saida
     command -v proot-distro >/dev/null 2>&1 || { printf '0\n'; return; }

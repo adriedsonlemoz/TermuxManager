@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.85] - 2026-09-24
+
+### Melhorado
+- A tela de **Diagnóstico Linux** agora usa caixas com quebra automática de linha, evitando textos cortados em detalhes, caminhos e mensagens de erro.
+- O painel foi reorganizado para ficar mais leve: resultado, arquitetura, arquivos e último erro aparecem de forma mais compacta.
+- O rodapé do diagnóstico agora oferece ações rápidas para **exportar log** e **testar novamente** a distro.
+
+### Adicionado
+- Nova opção **Exportar log** no diagnóstico Linux, copiando um arquivo para **Downloads** com nome contendo a distro, a data e a hora.
+- O arquivo exportado inclui resumo do diagnóstico, último erro e as linhas mais recentes do log Linux do Manager.
+
 ## [1.0.84] - 2026-09-24
 
 ### Melhorado

@@ -67,6 +67,7 @@ largura_visivel() {
 # dupla que sobre no pedaço cortado pode deixar o resultado 1 coluna mais
 # largo do que o previsto — foi isso que causava uma borda "│" solta
 # vazando para a linha seguinte em textos truncados com ícones.
+
 truncar_visivel() {
     local texto="$1" limite="$2" vis
     texto="$(strip_ansi "$texto")"
@@ -81,6 +82,43 @@ truncar_visivel() {
         [ $((vis + 1)) -le "$limite" ] && break
     done
     printf '%s…' "$texto"
+}
+
+# Quebra um texto em várias linhas respeitando a largura visível disponível.
+# Preserva quebras de linha já existentes e tenta manter palavras inteiras.
+quebrar_texto_visivel() {
+    local texto="${1:-}" limite="${2:-0}" largura linha palavra candidata
+    if [ "$limite" -le 0 ] 2>/dev/null; then
+        largura="$(largura_caixa_atual)"
+        limite=$((largura - 4))
+    fi
+    texto="$(strip_ansi "$texto")"
+    while IFS= read -r linha || [ -n "$linha" ]; do
+        if [ -z "$linha" ]; then
+            printf '\n'
+            continue
+        fi
+        local atual=""
+        for palavra in $linha; do
+            if [ -z "$atual" ]; then
+                candidata="$palavra"
+            else
+                candidata="$atual $palavra"
+            fi
+            if [ "$(largura_visivel "$candidata")" -le "$limite" ]; then
+                atual="$candidata"
+            else
+                [ -n "$atual" ] && printf '%s\n' "$atual"
+                if [ "$(largura_visivel "$palavra")" -le "$limite" ]; then
+                    atual="$palavra"
+                else
+                    printf '%s\n' "$(truncar_visivel "$palavra" "$limite")"
+                    atual=""
+                fi
+            fi
+        done
+        [ -n "$atual" ] && printf '%s\n' "$atual"
+    done <<< "$texto"
 }
 
 largura_caixa_atual() {
@@ -129,6 +167,24 @@ caixa_linha_texto() {
     fi
 }
 
+caixa_linha_texto_wrap() {
+    local texto="${1:-}" centralizar="${2:-false}" largura linhas linha primeira=true
+    largura="$(largura_caixa_atual)"
+    linhas="$(quebrar_texto_visivel "$texto" $((largura - 4)))"
+    while IFS= read -r linha || [ -n "$linha" ]; do
+        if [ -z "$linha" ]; then
+            caixa_linha_texto "" false
+        else
+            if [ "$centralizar" = true ] && [ "$primeira" = true ]; then
+                caixa_linha_texto "$linha" true
+            else
+                caixa_linha_texto "$linha" false
+            fi
+        fi
+        primeira=false
+    done <<< "$linhas"
+}
+
 # caixa_simples "titulo" "linha1" "linha2" ...
 caixa_simples() {
     local titulo="$1"; shift
@@ -138,6 +194,18 @@ caixa_simples() {
     local l
     for l in "$@"; do
         caixa_linha_texto "$l"
+    done
+    caixa_linha_baixo
+}
+
+caixa_simples_wrap() {
+    local titulo="$1"; shift
+    caixa_linha_topo
+    caixa_linha_texto "${C_BOLD}${titulo}${C_RESET}" true
+    caixa_linha_sep
+    local l
+    for l in "$@"; do
+        caixa_linha_texto_wrap "$l"
     done
     caixa_linha_baixo
 }
