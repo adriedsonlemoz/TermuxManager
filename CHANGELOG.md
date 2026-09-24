@@ -1,5 +1,43 @@
 # Changelog
 
+## [1.0.81] - 2026-09-23
+
+### Melhorado
+- A instalação de XFCE no módulo **Linux no celular** agora detecta automaticamente o gerenciador de pacotes da distribuição antes de executar qualquer comando.
+- O suporte automático foi ampliado para **APT, Pacman, APK, DNF e Zypper**, cobrindo também Fedora/Rocky e openSUSE além de Debian/Ubuntu, Arch e Alpine.
+- Antes de reinstalar o desktop, o Manager verifica se `xfce4-session` já existe e evita downloads e reinstalações desnecessárias.
+- Ao escolher **Iniciar desktop**, se o XFCE estiver ausente, o Manager explica a situação e oferece instalá-lo antes de abrir o Termux:X11.
+- Após a instalação, `xfce4-session` é validado novamente para confirmar que o desktop realmente ficou disponível.
+
+### Proteção
+- Distribuições cujo gerenciador de pacotes não seja reconhecido não recebem comandos genéricos ou potencialmente incompatíveis; o Manager interrompe a automação e informa o motivo.
+- Em distribuições baseadas em DNF ou Zypper, a instalação usa grupos/padrões quando disponíveis e possui alternativas de pacotes para aumentar a compatibilidade.
+
+## [1.0.80] - 2026-09-23
+
+### Melhorado
+- O módulo **Linux no celular** agora verifica a arquitetura do aparelho antes de iniciar o download de uma distribuição do Docker Hub.
+- A arquitetura do Termux é convertida para o padrão OCI (`aarch64/arm64`, `arm`, `amd64`, `386` e `riscv64`) e comparada com as variantes publicadas pela imagem selecionada.
+- A tela de instalação passou a mostrar **Compatível**, **Não confirmado** ou **Incompatível nativamente** antes da confirmação do download.
+- Consultas de arquitetura bem-sucedidas ficam em cache local por 6 horas para reduzir espera e consumo de rede.
+
+### Proteção
+- Quando a imagem não possui uma variante nativa para a CPU do aparelho, o Manager bloqueia o download e explica o motivo, evitando gastar dados móveis e armazenamento em uma instalação que provavelmente falharia.
+- Se a arquitetura não puder ser confirmada por falta de conexão, referência externa ao Docker Hub ou formato não consultável, o Manager não bloqueia a instalação e informa que o `proot-distro` fará a validação durante o pull.
+
+## [1.0.79] - 2026-09-23
+
+### Melhorado
+- Linux no celular agora usa **seleção numerada** para instalar, iniciar, reparar, remover e escolher a distribuição para XFCE/Termux:X11.
+- A instalação ganhou uma lista pronta de distribuições recomendadas e uma pesquisa opcional no Docker Hub, também com resultados numerados.
+- A tela de distribuições instaladas foi integrada ao visual do Manager e não exibe mais diretamente mensagens cruas em inglês do `proot-distro`.
+- Quando nenhuma distribuição estiver instalada, o Manager explica a situação e oferece abrir a instalação em vez de pedir um alias.
+- A atualização pelo GitHub agora desenha o estado **Conectando/Abrindo conexão** antes de iniciar qualquer operação de rede, evitando a tela aparentemente parada após selecionar a opção 1.
+
+### Corrigido
+- Referências OCI com `:` e `/`, como `ubuntu:24.04` e `opensuse/leap:15`, deixaram de ser rejeitadas como alias inválido.
+- Ações sobre distribuições instaladas agora usam `proot-distro list -q/--quiet` para selecionar apenas containers realmente instalados.
+
 ## [1.0.78] - 2026-09-23
 
 ### Melhorado

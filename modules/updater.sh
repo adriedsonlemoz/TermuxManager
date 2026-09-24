@@ -195,7 +195,10 @@ verificar_atualizacao_github() {
     github_status_render "🌐 Atualização pelo GitHub" \
         "Repositório: adriedsonlemoz/TermuxManager" \
         "Branch: $MANAGER_GITHUB_BRANCH • Instalada: $MANAGER_VERSION" \
-        "Preparando consulta..." "Conectando ao canal estável pela branch main."
+        "⏳ Conectando ao GitHub..." "A tela será atualizada automaticamente durante a consulta."
+    # Dá ao terminal móvel tempo para pintar o estado inicial antes de iniciar
+    # qualquer operação de rede. Evita a impressão de que a opção 1 travou.
+    sleep 0.20
 
     consultar_atualizacao_github || consulta_rc=$?
     if [ "$consulta_rc" -ne 0 ]; then
@@ -774,6 +777,11 @@ atualizar_manager_local() {
         ler_opcao
         case "$RESPOSTA_MENU" in
             1)
+                GITHUB_UPDATE_INTERACTIVE=true
+                github_status_render "🌐 Atualização pelo GitHub" \
+                    "Branch: $MANAGER_GITHUB_BRANCH • versão instalada: $MANAGER_VERSION" \
+                    "⏳ Abrindo conexão..." "Aguarde: nenhuma alteração será feita sem validação."
+                sleep 0.15
                 ATUALIZACAO_TIPO="github-main"
                 verificar_atualizacao_github
                 ATUALIZACAO_TIPO=""

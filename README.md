@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.78  
+**Versão atual:** 1.0.81  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -176,11 +176,16 @@ Nenhuma função foi removida; apenas as funções relacionadas passaram a ficar
 
 ## Linux no celular
 
+A interface de Linux prioriza uso leigo: distribuições instaladas são detectadas automaticamente e todas as ações principais usam **seleção numerada**, sem exigir que o usuário memorize aliases. A instalação oferece Ubuntu 24.04, Debian 12, Alpine, Fedora, openSUSE e Rocky Linux como atalhos, além de pesquisa opcional no Docker Hub. Referências OCI com versão, como `ubuntu:24.04`, são aceitas corretamente.
+
+Quando nenhuma distribuição estiver instalada, **Iniciar Linux**, reparo, remoção e funções de desktop informam isso e oferecem abrir a instalação, em vez de pedir um alias inexistente.
+
 Em **Linux no celular**, acessível diretamente pelo menu principal, o Manager pode preparar uma distribuição Linux sem exigir root. O fluxo usa o `proot-distro` instalado pelo próprio Termux e consulta dinamicamente a lista de distribuições disponíveis, em vez de manter uma lista fixa no código.
 
 O submenu permite:
 
 - analisar RAM, CPU, arquitetura, Android e espaço livre antes da instalação;
+- verificar **antes do download** se a imagem selecionada publica uma variante OCI compatível com a arquitetura do aparelho;
 - classificar o aparelho em perfil **Básico**, **Intermediário** ou **Desktop**, sempre como estimativa orientativa;
 - instalar `proot-distro` quando necessário;
 - listar e instalar distribuições disponíveis;
@@ -188,11 +193,15 @@ O submenu permite:
 - resetar/reinstalar ou remover uma distribuição com confirmações reforçadas;
 - instalar `x11-repo` e `termux-x11-nightly`;
 - baixar o APK oficial nightly do Termux:X11 para Downloads e abrir o instalador do Android;
-- instalar XFCE automaticamente em distribuições baseadas em `apt`, `pacman` ou `apk`;
+- instalar XFCE automaticamente em distribuições com `apt`, `pacman`, `apk`, `dnf` ou `zypper`;
+- detectar se o XFCE já está instalado e evitar reinstalações desnecessárias;
+- ao iniciar o desktop, oferecer instalar o XFCE automaticamente quando `xfce4-session` estiver ausente;
 - iniciar o XFCE usando Termux:X11 e `--shared-tmp`;
 - encerrar a sessão X11 e consultar orientações para tela preta, cores trocadas ou lentidão.
 
 O perfil de desempenho é conservador. Em aparelhos com pouca RAM ou pouco armazenamento, o Manager avisa que uma interface gráfica pode apresentar lentidão, encerramentos ou travamentos e recomenda priorizar o modo terminal. O usuário ainda pode continuar se quiser testar.
+
+Antes de baixar uma distribuição do Docker Hub, o Manager também traduz a arquitetura do Termux para a arquitetura OCI correspondente (`aarch64 → arm64`, `arm → arm`, `x86_64 → amd64`, `i686 → 386` e `riscv64 → riscv64`) e consulta as arquiteturas publicadas para a tag escolhida. O resultado aparece como **Compatível**, **Não confirmado** ou **Incompatível nativamente**. Quando a imagem é confirmada como incompatível, o download é bloqueado para evitar desperdício de dados e armazenamento. Se a consulta não puder ser confirmada, o usuário ainda pode prosseguir e o `proot-distro` fará a validação durante a instalação. As consultas bem-sucedidas ficam em cache local por algumas horas para evitar chamadas repetidas.
 
 O Termux:X11 possui duas partes: o pacote companion dentro do Termux e o aplicativo Android. O Manager instala automaticamente a parte do Termux e pode baixar o APK oficial, mas a confirmação final de instalação continua sendo feita pelo Android.
 
@@ -311,10 +320,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.78
-Tag: v1.0.78
-Release: Manager 1.0.78
-Pacote único: TermuxManager-v1.0.78.zip
+Versão: 1.0.81
+Tag: v1.0.81
+Release: Manager 1.0.81
+Pacote único: TermuxManager-v1.0.81.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

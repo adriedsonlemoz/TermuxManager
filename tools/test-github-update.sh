@@ -16,6 +16,8 @@ grep -Fq 'Conectando ao GitHub...' "$UPDATER"
 grep -Fq 'Carregando informações...' "$UPDATER"
 grep -Fq 'Baixado:' "$UPDATER"
 grep -Fq 'Isso não é travamento.' "$UPDATER"
+grep -Fq 'sleep 0.20' "$UPDATER"
+grep -Fq 'Abrindo conexão...' "$UPDATER"
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -37,7 +39,7 @@ EOF
 
 (
     set -u
-    MANAGER_VERSION="1.0.78"
+    MANAGER_VERSION="1.0.79"
     TERMUX_MANAGER_GITHUB_MANIFEST_URL="file://$TMP/MANIFEST.json"
     TERMUX_MANAGER_GITHUB_CHANGELOG_URL="file://$TMP/CHANGELOG.md"
     source "$UPDATER"
