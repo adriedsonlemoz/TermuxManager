@@ -229,7 +229,7 @@ menu_ambiente_hub() {
         detectar_variante_termux
         menu_unificado "🛠️ AMBIENTE E FERRAMENTAS" "Termux, pacotes e diagnóstico" \
             "[0] Voltar  •  [1–3] Selecionar" \
-            "1|🧰|Instalar ferramentas|Pacotes para desenvolvimento" \
+            "1|🧰|Instalar ferramentas|Ambientes de desenvolvimento" \
             "2|🔧|Ambiente Termux|Atualizar e manter o Termux" \
             "3|🔎|Diagnóstico rápido|$(termux_origem_resumida)"
         ler_opcao

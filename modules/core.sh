@@ -318,7 +318,14 @@ comando_existe() {
 
 instalar_pkg_termux() {
     # instalar_pkg_termux <pacote1> <pacote2> ...
+    # Usa o instalador robusto do módulo Termux quando ele já estiver carregado.
+    # Isso unifica instalações iniciadas por projetos/GitHub com o mesmo tratamento
+    # de disponibilidade, lock, log e recuperação usado no menu de ferramentas.
     local pacotes=("$@")
+    if declare -F instalar_lista_pacotes >/dev/null 2>&1; then
+        TERMUX_INSTALL_NONINTERACTIVE=true instalar_lista_pacotes "Dependências automáticas" "${pacotes[@]}"
+        return $?
+    fi
     info "Instalando via pkg (Termux): ${pacotes[*]}"
     pkg install -y "${pacotes[@]}" >>"$LOG_FILE" 2>&1
 }

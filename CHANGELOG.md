@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.0.90] - 2026-09-24
+
+### Melhorado
+- **Ferramentas instaladas** virou um painel de ambientes com resumo de completos, incompletos e ausentes.
+- Cada ambiente mostra componentes, versões reais detectadas e quais comandos ainda faltam.
+- É possível abrir Web, Python, Java, Go, Rust, Ruby, PHP ou Compilação e instalar somente o necessário para completar aquele ambiente.
+- A lista detalhada de todas as ferramentas detectadas continua disponível dentro do novo painel.
+
+### Corrigido
+- A instalação de ferramentas agora considera primeiro se o comando esperado já está funcional, mesmo quando o pacote exato não aparece como instalado no `dpkg`. Isso reduz falsos avisos e reinstalações desnecessárias em versões/variantes equivalentes.
+
+### Otimizado
+- A tela de status dos ambientes usa verificação local de comandos e evita consultas de repositório desnecessárias apenas para desenhar o painel.
+
+## [1.0.89] - 2026-09-24
+
+### Adicionado
+- O instalador oficial agora tenta preparar o armazenamento Android com `termux-setup-storage` antes de instalar o Manager quando os atalhos de armazenamento ainda não existem.
+- O README passou a orientar explicitamente executar `termux-setup-storage` e autorizar o Android **antes da primeira instalação**.
+- Novo painel **Recomendado** em Instalar ferramentas: analisa os projetos em `~/Painel` e sugere somente runtimes/ferramentas realmente necessários e ausentes.
+- Ambientes dedicados para **Go, Rust e Ruby**, além de painéis reorganizados para Web, Python, Java, PHP, compilação e bancos de dados.
+- Bancos de dados agora podem ser instalados separadamente: SQLite, PostgreSQL, MariaDB e Redis.
+- Java agora escolhe um JDK recomendado disponível no repositório e permite visualizar outras versões OpenJDK disponíveis.
+
+### Melhorado
+- Instalações de múltiplos pacotes agora são tentadas **em lote** pelo `pkg`, reduzindo resolução repetida de dependências e esperas por lock; se o lote falhar, o Manager tenta apenas os pacotes pendentes individualmente.
+- Instalações automáticas disparadas por projetos e integração GitHub passaram a reutilizar o mesmo instalador robusto do módulo Termux, com validação de disponibilidade, logs e tratamento de falhas.
+- Python foi separado em ambiente básico e compilação nativa para evitar instalar compiladores quando não forem necessários.
+- A tela Ferramentas instaladas agora mostra também o estado dos principais ambientes de desenvolvimento.
+
 ## [1.0.88] - 2026-09-24
 
 ### Adicionado

@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.88  
+**Versão atual:** 1.0.90  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -54,7 +54,7 @@ Ao executar frontend + backend juntos, o Manager usa um painel único com quatro
 
 ## Primeira instalação
 
-A instalação recomendada foi simplificada para **um único comando**. Você não precisa baixar o ZIP manualmente, procurar o arquivo em Downloads nem executar vários comandos de extração.
+A instalação principal usa **um único comando**, depois de liberar o armazenamento do Android. Você não precisa baixar o ZIP manualmente, procurar o arquivo em Downloads nem executar comandos de extração.
 
 ### 1. Instale o Termux
 
@@ -89,9 +89,27 @@ O instalador e a configuração inicial do Manager agora **detectam automaticame
 
 **https://github.com/termux-play-store**
 
-### 2. Instale o Termux Manager com um comando
+### 2. Libere o acesso ao armazenamento
 
-No Termux, copie e execute **esta linha inteira**:
+Antes de instalar o Manager pela primeira vez, abra o Termux e execute:
+
+```bash
+termux-setup-storage
+```
+
+Quando o Android solicitar, **autorize o acesso aos arquivos**. Esse passo cria os atalhos de armazenamento usados pelo Manager para Downloads, backups, diagnósticos e importação de projetos.
+
+> O instalador também tenta executar `termux-setup-storage` automaticamente quando o acesso ainda não estiver disponível, mas a confirmação da permissão continua dependendo do usuário no Android.
+
+### 3. Instale o Termux Manager com um comando
+
+Se `curl` ainda não existir no seu Termux, execute uma vez:
+
+```bash
+pkg install -y curl
+```
+
+Depois copie e execute **esta linha inteira**:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/adriedsonlemoz/TermuxManager/main/install.sh | bash
@@ -99,20 +117,21 @@ curl -fsSL https://raw.githubusercontent.com/adriedsonlemoz/TermuxManager/main/i
 
 Pronto. O instalador oficial faz automaticamente o restante:
 
-1. baixa a versão estável diretamente da branch `main` do repositório;
-2. verifica se `unzip`/ferramentas básicas já existem antes de instalar qualquer pacote;
-3. se outro `apt`/`dpkg` estiver trabalhando, aguarda a liberação e mostra apenas um status controlado, sem repetir dezenas de linhas de `Waiting for cache lock`;
-4. extrai o projeto e confere a versão declarada;
-5. valida os hashes de todos os arquivos listados em `MANIFEST.json`;
-6. valida `manager.sh` e os módulos com `bash -n`;
-7. instala em `~/scripts/manager`, preservando backup da instalação anterior;
-8. abre o Termux Manager.
+1. verifica se o acesso ao armazenamento Android já foi liberado e chama `termux-setup-storage` quando necessário;
+2. baixa a versão estável diretamente da branch `main` do repositório;
+3. verifica se `unzip`/ferramentas básicas já existem antes de instalar qualquer pacote;
+4. se outro `apt`/`dpkg` estiver trabalhando, aguarda a liberação e mostra apenas um status controlado, sem repetir dezenas de linhas de `Waiting for cache lock`;
+5. extrai o projeto e confere a versão declarada;
+6. valida os hashes de todos os arquivos listados em `MANIFEST.json`;
+7. valida `manager.sh` e os módulos com `bash -n`;
+8. instala em `~/scripts/manager`, preservando backup da instalação anterior;
+9. abre o Termux Manager.
 
 Esse fluxo **não depende de uma GitHub Release publicada**. Enquanto `main` for o canal estável do projeto, o comando acima continua funcionando mesmo que a página de Releases esteja vazia.
 
 > O comando recomendado não executa mais `pkg install curl` toda vez. Se o seu Termux realmente não tiver `curl`, instale-o uma única vez com `pkg install curl` e repita o comando.
 
-Na primeira abertura, o próprio Manager solicita acesso ao armazenamento, atualiza o ambiente, instala as ferramentas recomendadas e configura o comando global `manager`.
+Na primeira abertura, o Manager confirma o acesso ao armazenamento, atualiza o ambiente, instala as ferramentas recomendadas e configura o comando global `manager`.
 
 A primeira configuração é retomável: cada etapa concluída é salva. Se uma instalação de pacote ficar sem novas mensagens, o Manager continua mostrando **tempo decorrido** e **tempo desde a última atividade** em vez de parecer congelado. `Ctrl+C` durante uma instalação monitorada não fecha mais o Manager; abre opções para **tentar novamente**, **pular o pacote** ou **retomar depois**. Ao abrir novamente, etapas já concluídas e pacotes já instalados não são repetidos.
 
@@ -276,9 +295,17 @@ A detecção de porta:
 
 Isso evita interpretar números de IP, versões ou mensagens do log como portas.
 
-## Ferramentas instaladas
+## Ferramentas e ambientes de desenvolvimento
 
-Em **Instalar ferramentas → Ferramentas instaladas**, o Manager exibe apenas comandos realmente encontrados no Termux, com versão quando disponível.
+O menu **Instalar ferramentas** foi organizado por ambientes: **Web, Python, Java, Go, Rust, Ruby, PHP, Compilação, Bancos de dados, Arquivos e Terminal**. A tela principal mostra se cada ambiente está completo, incompleto ou ausente.
+
+A opção **Recomendado** analisa os projetos existentes em `~/Painel` procurando `package.json`, `requirements.txt`, `pyproject.toml`, `composer.json`, `go.mod`, `Cargo.toml`, `pom.xml` e arquivos Gradle. Depois oferece instalar **somente as ferramentas que realmente estão faltando**.
+
+Instalações com vários pacotes são tentadas primeiro **em lote**, reduzindo chamadas repetidas ao `apt/pkg`; se o lote falhar, o Manager faz fallback individual para identificar o pacote problemático. Instalações automáticas solicitadas pelos módulos de projeto/GitHub também usam o mesmo instalador robusto.
+
+Em **Instalar ferramentas → Ferramentas instaladas**, o Manager abre um painel dos principais ambientes de desenvolvimento. Cada ambiente mostra se está **completo, incompleto ou ausente**, quais comandos faltam e as versões reais dos componentes detectados. É possível entrar no ambiente e instalar somente o que estiver faltando. A lista completa de ferramentas continua disponível em uma opção separada.
+
+A detecção prioriza o **comando realmente funcional** antes de considerar um pacote ausente. Isso evita pedir novamente `nodejs`, Java, Rust ou outras ferramentas quando uma versão equivalente já fornece os comandos necessários.
 
 Categorias:
 
@@ -348,10 +375,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.88
-Tag: v1.0.88
-Release: Manager 1.0.88
-Pacote único: TermuxManager-v1.0.88.zip
+Versão: 1.0.90
+Tag: v1.0.90
+Release: Manager 1.0.90
+Pacote único: TermuxManager-v1.0.90.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

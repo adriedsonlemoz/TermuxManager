@@ -18,6 +18,8 @@ grep -Fq 'aguardar_pkg_livre' "$INSTALLER"
 grep -Fq 'pids_pkg_ativos' "$INSTALLER"
 grep -Fq 'detectar_variante_termux' "$INSTALLER"
 grep -Fq 'Termux detectado:' "$INSTALLER"
+grep -Fq 'termux-setup-storage' "$INSTALLER"
+grep -Fq 'termux-setup-storage' "$README"
 
 mkdir -p "$TMP/fixture/TermuxManager-main" "$TMP/fakebin" "$TMP/home" "$TMP/prefix" "$TMP/tmp"
 cp -a "$ROOT_DIR"/. "$TMP/fixture/TermuxManager-main/"
@@ -29,7 +31,13 @@ cat > "$TMP/fakebin/pkg" <<'PKG'
 #!/usr/bin/env bash
 exit 0
 PKG
-chmod +x "$TMP/fakebin/pkg"
+cat > "$TMP/fakebin/termux-setup-storage" <<'STORAGE'
+#!/usr/bin/env bash
+mkdir -p "$HOME/storage/downloads" "$HOME/storage/shared"
+printf 'ok' > "$HOME/storage-setup-called"
+exit 0
+STORAGE
+chmod +x "$TMP/fakebin/pkg" "$TMP/fakebin/termux-setup-storage"
 
 PATH="$TMP/fakebin:$PATH" \
 HOME="$TMP/home" \
@@ -45,4 +53,4 @@ bash "$INSTALLER" >/dev/null
 [ -f "$TMP/home/scripts/manager/MANIFEST.json" ]
 grep -Fq "MANAGER_VERSION=\"$VERSION\"" "$TMP/home/scripts/manager/manager.sh"
 
-echo "OK: instalador detecta a variante do Termux, baixa a branch main, valida o manifesto e instala sem depender de GitHub Releases."
+echo "OK: instalador prepara armazenamento, detecta variante, valida o manifesto e instala pela branch main."

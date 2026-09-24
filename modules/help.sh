@@ -8,11 +8,17 @@ ajuda_primeira_instalacao() {
         "Google Play: https://play.google.com/store/apps/details?id=com.termux" \
         "A edição Google Play exige Android 11+ e pode ter diferenças da edição GitHub/F-Droid."
     echo
-    caixa_simples "2. Instalar o Manager" \
-        "Copie esta linha inteira no Termux:" \
+    caixa_simples "2. Liberar armazenamento" \
+        "Execute: termux-setup-storage" \
+        "Aceite a permissão de arquivos solicitada pelo Android."
+    echo
+    caixa_simples "3. Instalar o Manager" \
+        "Se precisar: pkg install -y curl" \
+        "Depois execute:" \
         "curl -fsSL https://raw.githubusercontent.com/adriedsonlemoz/TermuxManager/main/install.sh | bash"
     echo
     caixa_simples "O instalador faz sozinho" \
+        "Confirma o acesso ao armazenamento antes da instalação." \
         "Baixa a versão estável diretamente da branch main." \
         "Se apt/dpkg estiver ocupado, aguarda sem inundar a tela." \
         "Valida os hashes declarados em MANIFEST.json e a sintaxe dos scripts." \
@@ -138,9 +144,13 @@ ajuda_execucao() {
 
 ajuda_ferramentas_fish() {
     cabecalho_tela "🧰 Ferramentas e Fish" "Ambiente de desenvolvimento"
+    caixa_simples "Ambientes de desenvolvimento" \
+        "Web, Python, Java, Go, Rust, Ruby, PHP e compilação." \
+        "Recomendado analisa ~/Painel e instala somente o que falta."
+    echo
     caixa_simples "Ferramentas instaladas" \
-        "Mostra somente comandos detectados no Termux." \
-        "As versões são organizadas por linguagens, web, Java, editores, bancos e utilitários."
+        "Mostra comandos, versões e o estado dos ambientes." \
+        "Bancos podem ser instalados separadamente."
     echo
     caixa_simples "Fish Shell" \
         "Instala, define como padrão, configura sugestões, prompt, histórico e atalhos." \

@@ -119,6 +119,30 @@ printf 'Repositório: %s
 
 ' "${TERMUX_REPO_PRIMARY:-indisponível}"
 
+# O acesso a Downloads depende de uma permissão do Android. O instalador tenta
+# preparar isso antes de instalar o Manager, mas a confirmação da janela de
+# permissão continua sendo feita pelo próprio usuário.
+if [ "${TERMUX_MANAGER_SKIP_STORAGE_SETUP:-0}" != "1" ]; then
+    if [ -d "$HOME/storage/downloads" ] || [ -d "$HOME/storage/shared" ]; then
+        ok "Armazenamento Android já está disponível."
+    elif command -v termux-setup-storage >/dev/null 2>&1; then
+        info "Preparando acesso ao armazenamento Android"
+        printf '%s
+' "Aceite a permissão de arquivos quando o Android solicitar."
+        termux-setup-storage >/dev/null 2>&1 || true
+        sleep 2
+        if [ -d "$HOME/storage/downloads" ] || [ -d "$HOME/storage/shared" ]; then
+            ok "Acesso ao armazenamento liberado."
+        else
+            printf '%s
+' "⚠ A permissão ainda não foi detectada. O Manager pode ser instalado, mas Downloads só ficará disponível depois que você conceder o acesso."
+        fi
+    else
+        printf '%s
+' "⚠ termux-setup-storage não foi encontrado. O Manager seguirá sem preparar Downloads."
+    fi
+fi
+
 mkdir -p "$TMP_BASE"
 TMP_DIR="$(mktemp -d "$TMP_BASE/termux-manager-install.XXXXXX")" || fail "Não foi possível criar a pasta temporária."
 
