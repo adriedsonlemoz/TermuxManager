@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.91  
+**Versão atual:** 1.0.102  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -27,6 +27,15 @@ O Manager usa o **nome da pasta** como identidade padrão do projeto. O campo `n
 ## Painel de teste integrado
 Ao executar frontend + backend juntos, o Manager usa um painel único com quatro etapas (Backend, Frontend, Inicialização e Disponibilidade). Status, avisos, PID, logs e detecção de servidor permanecem dentro da moldura visual durante a execução. Quando uma etapa falha, o painel é encerrado corretamente e o Manager oferece **Coletar logs do teste**, gerando em Downloads um único TXT sanitizado com logs de backend, frontend, Manager e metadados de processo.
 
+
+
+### Atualizador modular e validação reforçada (1.0.102)
+
+O subsistema de atualização foi separado em módulos para rede/GitHub, integridade, instalação completa, atualização local e interface. Pacotes completos agora rejeitam manifestos parciais, divergência de versão, caminhos inseguros, ZIPs com travessia de diretório e links simbólicos. A estimativa de espaço considera o backup completo e diretórios auxiliares presentes no pacote são sincronizados sem deixar arquivos obsoletos.
+
+### Central de Diagnóstico modular (1.0.101)
+
+A Central de Diagnóstico foi dividida em módulos menores para captura de falhas, relatórios de projetos, exportação de suporte, diagnóstico Android e menus. A API pública continua sendo carregada por `diagnostics.sh`. A sanitização também cobre segredos entre aspas e blocos de chave privada, e os relatórios de teste de projeto voltaram a gerar corretamente as seções de resolução e estado dos processos.
 
 ## Recursos principais
 
@@ -335,6 +344,8 @@ Em **Configurações → Fish Shell**, é possível:
 
 A limpeza do Fish não remove Python, Node.js, PHP, Git, projetos ou outros pacotes.
 
+A instalação do Fish usa o mesmo instalador monitorado dos demais ambientes de desenvolvimento, com espera de locks do `apt`/`dpkg`, recuperação e diagnóstico de falhas.
+
 
 ## Interface responsiva
 
@@ -375,10 +386,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.91
-Tag: v1.0.91
-Release: Manager 1.0.91
-Pacote único: TermuxManager-v1.0.91.zip
+Versão: 1.0.102
+Tag: v1.0.102
+Release: Manager 1.0.102
+Pacote único: TermuxManager-v1.0.102.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 
@@ -428,11 +439,33 @@ Em **Configurações → Manutenção do Manager**:
 │   ├── diagnostics.sh
 │   ├── help.sh
 │   ├── import.sh
+│   ├── import_copy.sh
+│   ├── import_wizard.sh
 │   ├── linux.sh
+│   ├── linux_diagnostics.sh
+│   ├── linux_x11.sh
 │   ├── projects.sh
+│   ├── projects_github.sh
+│   ├── projects_github_core.sh
+│   ├── projects_github_project.sh
+│   ├── projects_git.sh
+│   ├── projects_storage.sh
 │   ├── runtime.sh
+│   ├── runtime_detect.sh
+│   ├── runtime_dependencies.sh
+│   ├── runtime_processes.sh
 │   ├── settings.sh
+│   ├── settings_fish.sh
+│   ├── settings_shortcuts.sh
+│   ├── settings_maintenance.sh
 │   ├── termux.sh
+│   ├── termux_packages.sh
+│   ├── termux_packages_core.sh
+│   ├── termux_packages_ui.sh
+│   ├── termux_packages_monitor.sh
+│   ├── termux_packages_actions.sh
+│   ├── termux_setup.sh
+│   ├── termux_tools.sh
 │   ├── ui.sh
 │   └── updater.sh
 ├── tools/build-release.sh
@@ -537,11 +570,21 @@ A existência do PID, sozinha, não significa mais que o servidor está saudáve
 
 Em **Gerenciar projetos**, cada projeto mostra um resumo rápido da stack, estado do Git e componentes ativos. Ao abrir um projeto, o Manager exibe também tamanho e pasta antes das ações.
 
-A área **Git / GitHub** centraliza o status do repositório, envio de alterações, branches locais e a opção **Atualizar do remoto**. A atualização usa somente avanço rápido (`fast-forward`): se houver arquivos locais alterados ou histórico divergente, o Manager não sobrescreve nem cria merge automaticamente.
+A área **Git / GitHub** centraliza o status do repositório, envio de alterações, branches e a opção **Atualizar do remoto**. A atualização usa somente avanço rápido (`fast-forward`): se houver arquivos locais alterados ou histórico divergente, o Manager não sobrescreve nem cria merge automaticamente.
+
+## Central GitHub
+
+Em **Configurações → GitHub**, a conta é configurada uma única vez para todos os projetos. A Central GitHub permite conectar/desconectar a conta pelo `gh`, revisar o usuário atual, definir nome e e-mail globais do Git, escolher a branch padrão, testar a conexão e abrir **Meus repositórios**.
+
+A conta é global, mas o vínculo do repositório é **individual por projeto**. Cada projeto registra seu próprio `remote`, repositório e branch padrão. Antes de atualizar ou enviar, o Manager compara o vínculo salvo com o remote Git atual; se apontarem para repositórios diferentes, a operação é bloqueada para evitar publicar um projeto no repositório de outro. Quando um projeto possui vários remotes, o vínculo GitHub salvo pelo Manager tem prioridade sobre `origin`, permitindo manter `origin` em outro provedor sem atualizar, enviar ou remover o remoto errado.
+
+Dentro de **Gerenciar projetos → projeto → Git / GitHub**, estão disponíveis **Status do Git**, **Atualizar do remoto**, **Enviar para GitHub**, **Branches**, **Repositório vinculado**, **Histórico de commits** e **Configurar projeto**. O submenu de branches permite listar branches locais/remotas, criar, trocar, atualizar e publicar a branch atual.
 
 ## Envio simplificado para GitHub
 
-Dentro de **Gerenciar projetos → projeto → Git / GitHub → Enviar para GitHub**, o Manager prepara o Git e o GitHub CLI automaticamente. Na primeira publicação ele instala `git`/`gh` se necessário, conduz o login oficial do GitHub, cria um `.gitignore` de proteção, inicializa o repositório local, configura uma identidade Git local com o endereço `noreply` do GitHub e pergunta apenas o nome do repositório e a visibilidade (privado por padrão). Depois disso, os próximos envios reutilizam o repositório remoto e normalmente exigem apenas a mensagem do commit.
+Ao escolher **Enviar para GitHub**, o Manager mostra antes do commit o projeto selecionado, repositório de destino, branch, total de arquivos novos/modificados/removidos e uma prévia das alterações. O envio ocorre somente após confirmação e somente para o repositório vinculado àquele projeto.
+
+Na primeira publicação, o Manager pode instalar `git`/`gh`, conduzir o login oficial, criar um `.gitignore` de proteção, inicializar o Git e criar ou vincular um repositório existente. A autenticação é reutilizada pelos demais projetos, mas cada um mantém seu destino separado.
 
 O Manager **não usa `push --force` automaticamente**. Se o remoto tiver histórico diferente, o envio é interrompido e o usuário recebe orientação para sincronizar primeiro. Arquivos sensíveis comuns (`.env`, `.npmrc`, chaves privadas, credenciais) são ignorados por padrão; se algum deles já estiver rastreado pelo Git, o envio é bloqueado até ser removido do índice. Quando o projeto é a raiz `~/Painel`, estados internos do Manager e `~/Painel/projetos` também ficam fora da publicação.
 

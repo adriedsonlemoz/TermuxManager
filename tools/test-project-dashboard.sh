@@ -37,9 +37,9 @@ projeto_git_status_resumido "$PROJETOS_DIR/demo"
 [ "$PROJ_GIT_CHANGES" -eq 1 ]
 [[ "$PROJ_GIT_LABEL" == *'1 alt.'* ]]
 
-grep -Fq 'menu_git_projeto()' "$ROOT_DIR/modules/projects.sh"
-grep -Fq 'Atualizar do remoto' "$ROOT_DIR/modules/projects.sh"
-grep -Fq 'merge --ff-only' "$ROOT_DIR/modules/projects.sh"
+grep -Fq 'menu_git_projeto()' "$ROOT_DIR/modules/projects_git.sh"
+grep -Fq 'Atualizar do remoto' "$ROOT_DIR/modules/projects_git.sh"
+grep -Fq 'merge --ff-only' "$ROOT_DIR/modules/projects_git.sh"
 grep -Fq 'projeto_componentes_ativos()' "$ROOT_DIR/modules/projects.sh"
 grep -Fq 'projeto_tamanho_resumido()' "$ROOT_DIR/modules/projects.sh"
 

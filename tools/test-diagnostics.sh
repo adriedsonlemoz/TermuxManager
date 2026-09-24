@@ -39,7 +39,7 @@ set -e
 [ "$(find "$MANAGER_INCIDENT_DIR" -type f -name 'erro-*.txt' | wc -l | tr -d ' ')" -eq 0 ] || { printf 'Falha: return normal virou incidente.\n'; exit 1; }
 
 printf '[teste] [ERROR] JWT_SECRET=segredo-manager falha interna\n' > "$LOG_FILE"
-printf 'npm ERR! TypeError: falhou PASSWORD=segredo-projeto\n' > "$LOG_DIR/demo_frontend.log"
+printf 'npm ERR! TypeError: falhou PASSWORD=segredo-projeto API_KEY=\"segredo com espaco\"\n-----BEGIN PRIVATE KEY-----\nsegredo-pem-nao-pode-vazar\n-----END PRIVATE KEY-----\n' > "$LOG_DIR/demo_frontend.log"
 printf 'E: dpkg error TOKEN=segredo-termux\n' > "$TERMUX_SETUP_LOG"
 
 falha_controlada() { comando_inexistente_diagnostico_148; }
@@ -66,12 +66,26 @@ case "$pacote" in
     *.tar.gz) tar -xzf "$pacote" -C "$extraido" ;;
 esac
 
-if grep -RqsE 'segredo-manager|segredo-projeto|segredo-termux' "$extraido" "$MANAGER_INCIDENT_DIR"; then
+if grep -RqsE 'segredo-manager|segredo-projeto|segredo-termux|segredo com espaco|segredo-pem-nao-pode-vazar' "$extraido" "$MANAGER_INCIDENT_DIR"; then
     printf 'Falha: um segredo de teste permaneceu no relatório.\n'
     exit 1
 fi
 
 grep -Rqs '\[REMOVIDO\]' "$extraido" || { printf 'Falha: sanitização não foi comprovada.\n'; exit 1; }
+
+# O relatório de teste de projeto deve manter as seções estruturadas; havia um
+# printf quebrado que transformava a seção de resolução em texto literal.
+projeto_teste="$TMP/projeto-demo"
+mkdir -p "$projeto_teste"
+printf 'API_KEY="segredo com espaco"\n' > "$projeto_teste/.env"
+coletar_logs_teste_projeto "$projeto_teste" "" "" "Falha simulada" >/dev/null
+[ -f "$ULTIMO_RELATORIO_TESTE" ] || { printf 'Falha: relatório de teste de projeto não foi criado.\n'; exit 1; }
+grep -Fq '========== RESOLUÇÃO DO PROJETO ==========' "$ULTIMO_RELATORIO_TESTE" || { printf 'Falha: seção de resolução do projeto ausente.\n'; exit 1; }
+grep -Fq '========== ESTADO DOS PROCESSOS ==========' "$ULTIMO_RELATORIO_TESTE" || { printf 'Falha: seção de processos ausente.\n'; exit 1; }
+if grep -Fq 'segredo com espaco' "$ULTIMO_RELATORIO_TESTE"; then
+    printf 'Falha: segredo entre aspas vazou no relatório de projeto.\n'
+    exit 1
+fi
 [ -d "$extraido/manager" ] && [ -d "$extraido/projetos" ] && [ -d "$extraido/termux" ] || {
     printf 'Falha: categorias esperadas não foram criadas.\n'
     exit 1

@@ -8,7 +8,7 @@ O projeto usa Versionamento Semântico: `MAJOR.MINOR.PATCH`.
 - **MINOR:** nova funcionalidade compatível;
 - **PATCH:** correção, documentação ou melhoria visual sem quebra de compatibilidade.
 
-Versão atual de referência: `1.0.91`.
+Versão atual de referência: `1.0.102`.
 
 ## Padrão da release
 
@@ -25,10 +25,10 @@ Integridade: MANIFEST.json dentro do pacote
 Para a versão atual:
 
 ```text
-Versão interna: 1.0.91
-Tag: v1.0.91
-Título: Manager 1.0.91
-Pacote único: TermuxManager-v1.0.91.zip
+Versão interna: 1.0.102
+Tag: v1.0.102
+Título: Manager 1.0.102
+Pacote único: TermuxManager-v1.0.102.zip
 Integridade: MANIFEST.json dentro do pacote
 ```
 
@@ -92,11 +92,11 @@ Antes de publicar, revise `README.md`, `CHANGELOG.md`, `RELEASE_STANDARD.md` e `
 
 ## Validações de runtime
 
-A partir da 1.0.48, releases que alterem `runtime.sh` devem validar pelo menos um servidor saudável e um processo que permaneça vivo sem abrir a porta. Releases que alterem diagnósticos devem confirmar que retornos de controle não geram incidentes e que as exportações removem segredos comuns.
+A partir da 1.0.48, releases que alterem `runtime.sh` ou seus submódulos `runtime_*.sh` devem validar pelo menos um servidor saudável e um processo que permaneça vivo sem abrir a porta. Releases que alterem diagnósticos devem confirmar que retornos de controle não geram incidentes e que as exportações removem segredos comuns.
 
 
 ### Diagnóstico GitHub
-A integração GitHub deve registrar falhas em `~/.termux-manager/logs/github.log` e apresentar ao usuário a etapa que falhou. A preparação local não deve depender da obtenção da identidade remota até ser necessário criar um commit.
+A integração GitHub deve registrar falhas em `~/.termux-manager/logs/github.log` e apresentar ao usuário a etapa que falhou. A preparação local não deve depender da obtenção da identidade remota até ser necessário criar um commit. Quando a sanitização global estiver disponível, mensagens e saídas gravadas pelo logger GitHub devem passar por ela. Em projetos com vários remotes, operações GitHub devem priorizar o vínculo registrado para o projeto e nunca tratar automaticamente um `origin` de outro provedor como repositório GitHub.
 
 ## Atualização pelo GitHub
 

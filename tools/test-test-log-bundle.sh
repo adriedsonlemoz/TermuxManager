@@ -53,7 +53,7 @@ grep -q 'Porta esperada: 3001' "$ULTIMO_RELATORIO_TESTE"
 grep -q 'JWT_SECRET=\[REMOVIDO\]' "$ULTIMO_RELATORIO_TESTE"
 ! grep -q 'supersecretvalue\|minhasenha\|segredo-real\|user:pass' "$ULTIMO_RELATORIO_TESTE"
 # Regressão visual: falha de servidor deve exibir caminho curto.
-grep -q 'Consulte o log: $(caminho_home_relativo "$logf")' "$ROOT_DIR/modules/runtime.sh"
+grep -q 'Consulte o log: $(caminho_home_relativo "$logf")' "$ROOT_DIR/modules/runtime_processes.sh"
 # Toda saída antecipada do fluxo integrado deve passar pelo finalizador.
-grep -q 'finalizar_painel_teste_falha' "$ROOT_DIR/modules/runtime.sh"
+grep -q 'finalizar_painel_teste_falha' "$ROOT_DIR/modules/runtime_dependencies.sh"
 printf 'OK: coleta de logs de teste e correções da tela validadas.\n'

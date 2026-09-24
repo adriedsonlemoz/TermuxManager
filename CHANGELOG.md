@@ -1,5 +1,204 @@
 # Changelog
 
+## [1.0.102] - 2026-09-24
+
+### Refatorado
+- Décima etapa da refatoração estrutural: `modules/updater.sh` foi reduzido de **808 para 26 linhas** e agora atua somente como carregador do subsistema de atualização.
+- Estado, versões, hashes e validação de integridade foram movidos para `modules/updater_core.sh`.
+- Consulta, changelog e download pelo GitHub foram movidos para `modules/updater_github.sh`.
+- Descoberta de arquivos locais e atualização isolada foram movidas para `modules/updater_local.sh`.
+- Instalação completa, backup, troca transacional e rollback foram movidos para `modules/updater_install.sh`.
+- Histórico, seleção e menu de atualização foram movidos para `modules/updater_ui.sh`, preservando as funções públicas existentes.
+
+### Corrigido
+- A validação do `MANIFEST.json` não aceita mais manifestos parciais: `manager.sh` e todos os scripts em `modules/` precisam possuir hash declarado e válido.
+- A versão declarada no manifesto agora precisa coincidir com `MANAGER_VERSION` do `manager.sh`, evitando instalar pacotes internamente inconsistentes.
+- Caminhos absolutos, componentes `..` e caminhos com barra invertida no manifesto são rejeitados antes da validação dos hashes.
+- ZIPs de atualização com travessia de diretório são rejeitados antes da extração, e pacotes extraídos contendo links simbólicos também são recusados.
+- A atualização interrompe corretamente quando `unzip` não pode ser disponibilizado, em vez de seguir para uma extração impossível.
+- A estimativa de espaço livre agora considera todos os itens realmente incluídos no backup, não apenas `manager.sh` e `modules/`.
+- Diretórios auxiliares presentes no novo pacote (`tools`, `resources` e `config`) são substituídos de forma limpa, evitando arquivos obsoletos de versões anteriores.
+- Em falha durante a sincronização auxiliar, o rollback remove o estado parcialmente aplicado antes de restaurar o backup, evitando mistura entre arquivos novos e antigos.
+
+### Testes
+- Adicionado `test-updater-refactor.sh`, cobrindo o carregador modular, preservação da API, rejeição de manifesto parcial, divergência de versão, ZIP com travessia e limpeza de arquivos auxiliares obsoletos.
+- Suíte ampliada de **42 para 43 testes**.
+
+## [1.0.101] - 2026-09-24
+
+### Refatorado
+- Nona etapa da refatoração estrutural: `modules/diagnostics.sh` foi reduzido de **813 para 26 linhas** e agora atua somente como carregador da Central de Diagnóstico.
+- Captura de falhas, sanitização e utilitários foram movidos para `modules/diagnostics_core.sh`.
+- Relatórios de falha dos testes de projetos foram movidos para `modules/diagnostics_project.sh`.
+- Exportações consolidadas e o pacote de suporte foram movidos para `modules/diagnostics_reports.sh`.
+- Diagnóstico Android via Rish/Shizuku e teste de armazenamento foram movidos para `modules/diagnostics_android.sh`.
+- Menus e navegação foram movidos para `modules/diagnostics_ui.sh`, preservando a API pública existente.
+
+### Corrigido
+- `coletar_logs_teste_projeto` continha um `printf` quebrado que fazia parte da seção **Resolução do projeto** virar texto literal e podia corromper/omitir informações do relatório sem gerar erro de sintaxe.
+- A sanitização agora remove valores sensíveis entre aspas duplas, inclusive com espaços, como `API_KEY="..."`.
+- Blocos PEM de chave privada agora têm o conteúdo integral removido dos relatórios, preservando apenas os delimitadores e a indicação de conteúdo removido.
+- O teste de armazenamento Android não informa mais sucesso quando a escrita ou a cópia falham; agora registra a falha, remove temporários e retorna status coerente.
+- Falhas ao compactar o pacote de diagnóstico agora removem o diretório temporário antes de retornar.
+
+### Testes
+- Mantida a suíte em **42 testes**, ampliando `test-diagnostics.sh` para validar o relatório estruturado de projeto, segredos entre aspas e remoção de conteúdo PEM.
+
+## [1.0.100] - 2026-09-24
+
+### Refatorado
+- Oitava etapa da refatoração estrutural: `modules/termux_packages.sh` foi reduzido de **998 para cerca de 24 linhas** e agora atua somente como carregador do subsistema de pacotes do Termux.
+- Repositórios, variante do Termux e estado básico de pacotes foram movidos para `modules/termux_packages_core.sh`.
+- Interface de progresso, diagnóstico, exportação de logs e reparo de `dpkg` foram movidos para `modules/termux_packages_ui.sh`.
+- Espera de locks, detecção de prompts, controle de processos e execução monitorada de `pkg`/`apt` foram movidos para `modules/termux_packages_monitor.sh`.
+- Atualização do Termux, configuração de armazenamento, diagnóstico do ambiente e instalação em lote/fallback foram movidos para `modules/termux_packages_actions.sh`.
+- A API pública permanece compatível ao carregar `termux.sh`/`termux_packages.sh`, sem remoção de funcionalidades.
+
+### Corrigido
+- A detecção de múltiplos repositórios não usa mais `paste -d ', '`, que alternava delimitadores e podia fazer `TERMUX_REPO_PRIMARY` conter a lista inteira; o resumo agora usa separação consistente por vírgula e espaço.
+- Fontes APT no formato `deb [opções] https://...` agora são reconhecidas corretamente ao detectar a origem do Termux.
+- A barra de progresso da tela monitorada passa a usar a largura calculada para a tela atual, evitando truncamento do percentual quando `LARGURA_CAIXA` estava desatualizada após rotação/redimensionamento do terminal.
+- O diagnóstico de falha do `pkg` agora é sanitizado **antes** de ser salvo, exibido ou copiado para a área de transferência, inclusive quando a Central de Diagnóstico ainda não foi carregada.
+- A exportação de logs para Downloads não informa mais arquivos inexistentes como se tivessem sido copiados; quando não há logs disponíveis, retorna uma mensagem e status de falha coerentes.
+
+### Testes
+- Mantida a suíte em **42 testes**, ampliando os testes existentes para validar o novo carregador, os quatro submódulos, compatibilidade da API, sanitização do diagnóstico, fontes APT com opções e múltiplos repositórios.
+
+## [1.0.99] - 2026-09-24
+
+### Refatorado
+- Sétima etapa da refatoração estrutural: `modules/projects_github.sh` foi reduzido de **1.071 para cerca de 10 linhas** e agora atua somente como carregador da integração Git/GitHub.
+- Estado e atualização Git do projeto foram movidos para `modules/projects_git.sh`.
+- Autenticação, logging, metadados de vínculo e Central GitHub global foram movidos para `modules/projects_github_core.sh`.
+- Vínculo, branches, segurança e publicação por projeto foram movidos para `modules/projects_github_project.sh`.
+- A API pública continua disponível carregando apenas `projects_github.sh`, preservando os menus e integrações existentes.
+
+### Corrigido
+- Projetos com vários remotes agora priorizam o **remote GitHub registrado para aquele projeto**. Um `origin` apontando para GitLab/outro provedor não é mais usado por engano em Atualizar do remoto, status GitHub ou envio.
+- **Remover vínculo GitHub** não pode mais apagar um `origin` de outro provedor quando não existe vínculo GitHub válido.
+- Ao vincular/trocar um repositório, um `origin` não-GitHub é preservado e o Manager usa um remote GitHub separado em vez de sobrescrevê-lo silenciosamente.
+- O painel geral deixou de chamar uma árvore de trabalho limpa de “sincronizada” sem consultar o remoto; agora informa apenas **árvore local limpa**.
+- O logger GitHub passa a reutilizar a sanitização global de segredos quando disponível, inclusive em mensagens e saídas capturadas por `github_run`.
+
+### Testes
+- Adicionado teste estrutural da refatoração Git/GitHub, cobrindo carregamento dos três submódulos, seleção segura em projetos com múltiplos remotes e sanitização do log.
+
+## [1.0.98] - 2026-09-24
+
+### Refatorado
+- Sexta etapa da refatoração estrutural: `modules/import.sh` foi reduzido de **884 para cerca de 27 linhas** e agora atua somente como carregador/estado compartilhado do subsistema de importação.
+- O assistente de origem, ZIP, destino, conflitos e pós-importação foi movido para `modules/import_wizard.sh`.
+- O motor de cópia, `rsync`, progresso e utilitários de transferência foi movido para `modules/import_copy.sh`.
+- A API pública continua disponível carregando apenas `import.sh`, preservando os fluxos e testes existentes.
+
+### Corrigido
+- Pacotes ZIP agora são inspecionados antes da extração e a importação bloqueia caminhos absolutos ou entradas com `../`, evitando que um pacote malformado tente gravar fora da pasta temporária.
+- A importação de arquivos avulsos não informa mais sucesso quando uma ou mais cópias falham; o estado `ULTIMA_COPIA_OK` só é marcado depois de uma cópia integralmente concluída.
+- Em substituição de projeto, dependências preservadas em cache são restauradas mesmo quando a nova cópia falha, evitando abandonar `node_modules` no diretório temporário.
+- A remoção do projeto antigo antes de substituir agora valida o resultado e interrompe a operação se o destino não puder ser removido.
+
+### Testes
+- Adicionado teste estrutural da importação cobrindo carregamento dos novos submódulos, preservação da API, rejeição de ZIP com travessia de diretório e regressão de falso sucesso em cópia parcial.
+
+## [1.0.97] - 2026-09-24
+
+### Refatorado
+- Quinta etapa da refatoração estrutural: `modules/settings.sh` foi reduzido de **923 para cerca de 116 linhas** e agora concentra apenas as preferências gerais e o carregamento do subsistema.
+- Fish Shell foi extraído para `modules/settings_fish.sh`.
+- Atalhos globais `manager`/`mm` foram extraídos para `modules/settings_shortcuts.sh`.
+- Restauração, desinstalação, limpeza total do Painel e o menu principal de configurações foram extraídos para `modules/settings_maintenance.sh`.
+- A API pública continua disponível carregando somente `settings.sh`, preservando os menus e integrações existentes.
+
+### Corrigido
+- A instalação do **Fish** deixou de usar um caminho paralelo com `pkg update`/`pkg install`; agora reutiliza o instalador robusto central do Manager, herdando espera de locks, reparo do `dpkg`, detecção da variante do Termux, fallback e tratamento de prompts interativos.
+- O helper de desinstalação não grava mais o caminho `/data/data/com.termux/files/usr/bin/bash` de forma fixa; ele usa o Bash detectado no ambiente atual.
+- **Excluir todo o Painel** agora bloqueia a operação quando a própria instalação do Manager estiver dentro de `~/Painel`, evitando apagar o aplicativo enquanto ele está executando.
+
+### Testes
+- Adicionado teste estrutural de Configurações cobrindo carregamento dos três submódulos, preservação da API pública, uso do instalador central pelo Fish e proteção da exclusão total do Painel.
+
+## [1.0.96] - 2026-09-24
+
+### Refatorado
+- Quarta etapa da refatoração estrutural: `modules/runtime.sh` foi reduzido de cerca de **1.655 para 18 linhas** e agora atua apenas como carregador do subsistema de execução.
+- Detecção de stack/estrutura foi movida para `modules/runtime_detect.sh`.
+- Configuração, dependências, instalação e testes foram movidos para `modules/runtime_dependencies.sh`.
+- Processos, portas, execução em background e saúde dos servidores foram movidos para `modules/runtime_processes.sh`.
+- A API pública continua disponível ao carregar `runtime.sh`, mantendo compatibilidade com os demais módulos.
+
+### Corrigido
+- A detecção de projetos Node.js não confunde mais qualquer chave de `package.json` com uma dependência real. Chaves de scripts, metadata ou configuração chamadas `next`, `react`, `express` etc. não alteram mais o framework detectado.
+- A escolha entre `dev` e `start` agora verifica somente o objeto `scripts` do `package.json`, evitando executar um script inexistente quando a palavra aparecia em outra seção do arquivo.
+- `instalar_dependencias` passou a executar em contexto isolado e não altera mais o diretório atual do terminal em retornos de sucesso ou erro.
+
+### Testes
+- Adicionado teste estrutural do runtime cobrindo carregamento dos três submódulos, preservação da API pública, regressão da detecção JSON e isolamento do diretório atual.
+
+## [1.0.95] - 2026-09-24
+
+### Refatorado
+- Terceira etapa da refatoração estrutural: `modules/termux.sh` foi reduzido de cerca de **1.866 para 35 linhas** e agora atua somente como carregador do subsistema Termux.
+- Operações de `pkg`/`apt`, repositórios, logs e diagnóstico foram extraídas para `modules/termux_packages.sh`.
+- Ambientes e ferramentas de desenvolvimento foram extraídos para `modules/termux_tools.sh`.
+- Manutenção e assistente de primeira execução foram extraídos para `modules/termux_setup.sh`.
+- `termux.sh` continua expondo a mesma API pública ao carregar automaticamente os três submódulos.
+
+### Corrigido
+- Quando uma instalação monitorada detecta uma pergunta interativa, o Manager não repete mais o mesmo comando com `DEBIAN_FRONTEND=noninteractive`; agora retoma pelo `pkg` original em uma sessão interativa ligada ao terminal.
+- Logs do Termux e pacotes de suporte exportados para Downloads passam a reutilizar a sanitização global de segredos quando disponível, evitando copiar tokens, senhas e cabeçalhos de autorização em texto puro.
+
+### Testes
+- Adicionado teste estrutural do subsistema Termux, cobrindo carregamento dos submódulos, preservação da API pública, sanitização dos logs e migração de prompts para o modo interativo.
+
+## [1.0.94] - 2026-09-24
+
+### Refatorado
+- Segunda etapa da refatoração estrutural: `modules/projects.sh` foi reduzido de cerca de **1.878 para 524 linhas**.
+- Toda a integração Git/GitHub global e por projeto foi extraída para `modules/projects_github.sh`.
+- Informações, backup e exclusão segura de projetos foram extraídos para `modules/projects_storage.sh`.
+- `projects.sh` continua carregando os submódulos automaticamente, preservando as funções públicas usadas pelos menus e testes.
+
+### Corrigido
+- **Atualizar dependências** não informa mais sucesso quando a instalação ou a verificação de um componente falha; agora contabiliza as falhas e retorna erro corretamente.
+- A atualização de dependências restaura o diretório atual depois de trabalhar em frontend/backend, evitando deixar o terminal preso no último componente processado.
+- **Excluir projeto** agora bloqueia a remoção da própria raiz `~/Painel` quando ela representa um monorepo, exigindo o fluxo específico de limpeza total do Painel.
+- Caminhos fora de `~/Painel` também são bloqueados pela rotina de exclusão de projeto.
+
+### Testes
+- Adicionado teste estrutural da refatoração de projetos, incluindo carregamento dos submódulos, proteção da raiz do Painel e regressão de sucesso falso ao atualizar dependências.
+
+## [1.0.93] - 2026-09-24
+
+### Refatorado
+- Primeira etapa da refatoração estrutural: `modules/linux.sh` foi reduzido de cerca de **2.640 para 1.320 linhas**.
+- Diagnóstico de distribuições e do ambiente PRoot foi extraído para `modules/linux_diagnostics.sh`.
+- Termux:X11 e ambientes gráficos foram extraídos para `modules/linux_x11.sh`.
+- `linux.sh` continua carregando os submódulos automaticamente, preservando a API e os fluxos existentes.
+
+### Corrigido
+- O diagnóstico temporário do PRoot deixou de gravar um shebang com caminho fixo do Termux; o teste agora é independente desse caminho.
+- Logs Linux exportados para Downloads agora passam por **sanitização de segredos** antes de serem gravados, evitando expor tokens, senhas e cabeçalhos de autorização encontrados no log.
+
+### Testes
+- Adicionado teste estrutural da refatoração Linux para garantir que os novos submódulos sejam carregados e que as funções públicas continuem disponíveis.
+
+## [1.0.92] - 2026-09-24
+
+### Adicionado
+- Nova **Central GitHub** em Configurações, com conexão da conta, identidade Git global, branch padrão, teste de autenticação, desconexão e painel **Meus repositórios**.
+- Cada projeto agora possui configuração própria de GitHub para vincular repositório existente, criar repositório, trocar vínculo, definir branch padrão e remover somente o vínculo local.
+- O painel Git do projeto ganhou **Repositório vinculado**, **Histórico de commits** e um gerenciador de branches com listar, criar, trocar, atualizar e publicar.
+- Metadados de vínculo por projeto ficam fora do código do projeto, em área interna do Manager.
+
+### Proteção
+- Antes de atualizar ou enviar um projeto, o Manager confirma que o remote GitHub corresponde ao repositório registrado para aquele projeto; divergências bloqueiam a operação.
+- A tela de envio mostra projeto, repositório, branch, contagem de arquivos novos/modificados/removidos e uma prévia antes de criar o commit.
+- O Manager não usa push forçado automaticamente e continua bloqueando pull quando houver alterações locais ou histórico divergente.
+
+### Melhorado
+- A configuração da branch padrão deixou de ser fixa em `main` e pode ser definida globalmente ou por projeto.
+- A listagem de branches passou a mostrar também branches remotas já conhecidas localmente.
+
 ## [1.0.91] - 2026-09-24
 
 ### Melhorado

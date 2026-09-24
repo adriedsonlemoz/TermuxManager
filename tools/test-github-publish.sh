@@ -25,18 +25,18 @@ garantir_gitignore_seguro "$PAINEL_DIR"
 [ "$(grep -Fc '# >>> Termux Manager: proteção de publicação >>>' "$PAINEL_DIR/.gitignore")" -eq 1 ]
 
 # O menu e o despachante precisam expor a ação GitHub.
-grep -Fq '|🐙|Enviar para GitHub|' "$ROOT/modules/projects.sh"
-grep -Fq 'enviar_projeto_github "$projeto"' "$ROOT/modules/projects.sh"
+grep -Fq '|⬆️|Enviar para GitHub|' "$ROOT/modules/projects_git.sh"
+grep -Fq 'enviar_projeto_github "$projeto"' "$ROOT/modules/projects_git.sh"
 
 
 # Regressões da 1.0.60: log dedicado e identidade fora da preparação local.
-grep -Fq 'GITHUB_LOG_FILE="$GITHUB_LOG_DIR/github.log"' "$ROOT/modules/projects.sh"
-grep -Fq 'github_mostrar_falha' "$ROOT/modules/projects.sh"
-prep=$(sed -n '/^preparar_repo_git_local()/,/^}/p' "$ROOT/modules/projects.sh")
+grep -Fq 'GITHUB_LOG_FILE="$GITHUB_LOG_DIR/github.log"' "$ROOT/modules/projects_github_core.sh"
+grep -Fq 'github_mostrar_falha' "$ROOT/modules/projects_github_core.sh"
+prep=$(sed -n '/^preparar_repo_git_local()/,/^}/p' "$ROOT/modules/projects_github_project.sh")
 if printf '%s\n' "$prep" | grep -Fq 'configurar_identidade_git_github'; then
     echo 'ERRO: identidade Git voltou a bloquear preparar_repo_git_local.' >&2
     exit 1
 fi
-grep -Fq 'configurar_identidade_git_github "$projeto"' "$ROOT/modules/projects.sh"
+grep -Fq 'configurar_identidade_git_github "$projeto"' "$ROOT/modules/projects_github_project.sh"
 
 printf 'OK: fluxo básico de publicação GitHub validado.\n'

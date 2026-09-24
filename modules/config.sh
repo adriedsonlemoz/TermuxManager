@@ -60,6 +60,7 @@ LOG_MAX_MB=5
 DESTINO_IMPORTACAO_PADRAO="perguntar"
 CONFLITO_PADRAO="perguntar"
 CONFIRMAR_COPIA=true
+GITHUB_BRANCH_PADRAO="main"
 
 carregar_config() {
     # Lê somente chaves conhecidas. Não executa o arquivo como código Bash.
@@ -87,6 +88,9 @@ carregar_config() {
                 CONFLITO_PADRAO)
                     [[ "$valor" == perguntar || "$valor" == substituir || "$valor" == pular || "$valor" == renomear ]] && CONFLITO_PADRAO="$valor"
                     ;;
+                GITHUB_BRANCH_PADRAO)
+                    [[ "$valor" =~ ^[A-Za-z0-9._/-]+$ ]] && GITHUB_BRANCH_PADRAO="$valor"
+                    ;;
             esac
         done < "$CONFIG_FILE"
     fi
@@ -111,6 +115,7 @@ LOG_MAX_MB=$LOG_MAX_MB
 DESTINO_IMPORTACAO_PADRAO="$DESTINO_IMPORTACAO_PADRAO"
 CONFLITO_PADRAO="$CONFLITO_PADRAO"
 CONFIRMAR_COPIA=$CONFIRMAR_COPIA
+GITHUB_BRANCH_PADRAO="$GITHUB_BRANCH_PADRAO"
 EOF
 }
 

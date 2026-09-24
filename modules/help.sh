@@ -78,10 +78,16 @@ ajuda_estrutura() {
         "ui.sh — caixas, menus e renderização atômica" \
         "import.sh — assistente, análise e cópia" \
         "projects.sh — projetos, ações e Centro de exclusão" \
-        "runtime.sh — dependências, processos, portas e logs" \
+        "runtime.sh — carregador do runtime" \
+        "runtime_detect.sh — stack e estrutura dos projetos" \
+        "runtime_dependencies.sh — configuração, dependências e testes" \
+        "runtime_processes.sh — processos, portas, execução e saúde" \
         "termux.sh — ambiente, ferramentas e primeira configuração" \
         "updater.sh — atualização, backup e reinício" \
-        "settings.sh — Fish, atalhos, limpeza e manutenção" \
+        "settings.sh — preferências gerais e carregador de configurações" \
+        "settings_fish.sh — Fish Shell e experiência interativa" \
+        "settings_shortcuts.sh — atalhos globais manager e mm" \
+        "settings_maintenance.sh — restauração, limpeza e manutenção" \
         "help.sh — ajuda integrada" \
         "app.sh — menu principal e página Sobre"
     echo
