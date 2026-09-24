@@ -86,32 +86,12 @@ ajuda_estrutura() {
 }
 
 ajuda_menus() {
-    cabecalho_tela "📋 Funções do menu" "Resumo das áreas principais"
-    caixa_simples "Gerenciar projetos" \
-        "Lista projetos, detecta stack e oferece executar, copiar, GitHub, abrir e excluir." \
-        "Enviar para GitHub configura a primeira publicação e simplifica os próximos pushes."
+    cabecalho_tela "📋 Funções do menu" "Três áreas principais"
+    caixa_simples "📁 Projetos"         "Meus projetos: listar, executar, copiar, GitHub, abrir e excluir."         "Importar projeto: pasta, arquivos ou ZIP diretamente de Downloads."         "Em execução: processos ativos, portas, logs e opções de parada."
     echo
-    caixa_simples "Em execução" \
-        "Mostra componentes ativos, PID, porta validada, logs e opções de parada."
+    caixa_simples "🛠️ Ambiente"         "Instalar ferramentas: linguagens, editores, shells, bancos e utilitários."         "Ambiente Termux: atualização, armazenamento e manutenção."         "Diagnóstico rápido: variante do Termux e ferramentas detectadas."
     echo
-    caixa_simples "Importar projeto" \
-        "Lista diretamente a pasta Downloads e importa pasta, arquivos ou ZIP." \
-        "Após copiar um projeto: testar agora, abrir seu menu, importar outro ou voltar ao início." \
-        "A análise separa descoberta (sem porcentagem falsa) e cálculo de tamanho (percentual real)." \
-        "Não é necessário mover pacotes para Downloads/projetos antes de importar."
-    echo
-    caixa_simples "Instalar ferramentas" \
-        "Instala linguagens, editores, shells, bancos e utilitários." \
-        "Ferramentas instaladas mostra somente o que existe no Termux e sua versão."
-    echo
-    caixa_simples "Ambiente Termux" \
-        "Atualiza pacotes, prepara armazenamento, diagnostica e faz manutenção."
-    echo
-    caixa_simples "Configurações" \
-        "Aparência, caminhos, importação, execução, Fish, atalhos e manutenção."
-    echo
-    caixa_simples "Atualizar, Sobre e Ajuda" \
-        "Atualizações seguras, informações da instalação e manual interno."
+    caixa_simples "⚙️ Manager"         "Atualizar Manager: atualização segura do pacote ou módulo."         "Configurações: aparência, caminhos, execução, Fish e manutenção."         "Sobre e Ajuda: versão, ambiente, changelog e manual interno."
     pause
 }
 

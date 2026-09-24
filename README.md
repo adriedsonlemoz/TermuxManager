@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.74  
+**Versão atual:** 1.0.75  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -135,18 +135,16 @@ Use **Code → Download ZIP** para baixar a cópia atual da branch `main`. Depoi
 
 ## Menu principal
 
-- **Gerenciar projetos:** listar, abrir, executar, copiar, excluir e limpar o Painel.
-- **Em execução:** acompanhar processos, portas, logs e parar componentes.
+O menu principal foi reduzido a três áreas para evitar uma lista longa de opções:
+
+- **Projetos:** reúne **Meus projetos**, **Importar projeto** e **Em execução**.
   - 🟢 servidor disponível: PID ativo e porta realmente respondendo;
   - 🟡 processo ativo: PID existe, mas a porta não abriu ou o log indica falha;
   - 🔴 encerrado: PID não existe mais e os metadados são limpos.
-- **Importar projeto:** importar pasta, arquivos ou ZIP por assistente.
-- **Instalar ferramentas:** instalar pacotes e listar somente as ferramentas já detectadas.
-- **Ambiente Termux:** armazenamento, atualização, diagnóstico e manutenção.
-- **Atualizar Manager:** atualizar o pacote completo ou um módulo.
-- **Configurações:** aparência, caminhos, execução, Fish, atalhos, diagnóstico e manutenção.
-- **Sobre:** versão, ambiente, repositório e changelog.
-- **Ajuda:** manual resumido e atualizado dentro do aplicativo.
+- **Ambiente:** reúne **Instalar ferramentas**, **Ambiente Termux** e **Diagnóstico rápido**.
+- **Manager:** reúne **Atualizar Manager**, **Configurações**, **Sobre** e **Ajuda**.
+
+Nenhuma função foi removida; apenas as funções relacionadas passaram a ficar agrupadas em submenus.
 
 ## Importação de projetos
 
@@ -263,10 +261,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.74
-Tag: v1.0.74
-Release: Manager 1.0.74
-Pacote único: TermuxManager-v1.0.74.zip
+Versão: 1.0.75
+Tag: v1.0.75
+Release: Manager 1.0.75
+Pacote único: TermuxManager-v1.0.75.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

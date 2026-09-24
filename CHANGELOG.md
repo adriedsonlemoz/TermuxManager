@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.75] - 2026-09-23
+
+### Melhorado
+- O menu principal foi reduzido de nove opções para **três áreas principais**: **Projetos**, **Ambiente** e **Manager**.
+- **Projetos** agora reúne Meus projetos, Importar projeto e Em execução.
+- **Ambiente** agora reúne Instalar ferramentas, Ambiente Termux e Diagnóstico rápido.
+- **Manager** agora reúne Atualizar Manager, Configurações, Sobre e Ajuda.
+- A ajuda integrada e o README foram atualizados para refletir a nova navegação sem remover nenhuma função existente.
+
 ## [1.0.74] - 2026-09-23
 
 ### Melhorado

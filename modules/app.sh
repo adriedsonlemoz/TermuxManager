@@ -200,33 +200,82 @@ mostrar_confirmacao_pos_atualizacao() {
 # MENU PRINCIPAL
 # ============================================================================
 
-menu_principal() {
+menu_projetos_hub() {
     while true; do
         limpar_pidfiles_inativos
         local ativos=0 pf
-        for pf in "$PID_DIR"/*.pid; do [ -e "$pf" ] && pid_ativo "$pf" && ativos=$((ativos+1)); done
-        menu_unificado "🧰 MANAGER.SH — VERSÃO $MANAGER_VERSION" "Por $MANAGER_DEVELOPER" \
-            "[0] Sair  •  [1–9] Selecionar" \
-            "1|📁|Gerenciar projetos|Abrir, testar e organizar" \
-            "2|🚦|Em execução|$ativos componente(s) ativo(s)" \
-            "3|📦|Importar projeto|Pasta, arquivo ou ZIP" \
-            "4|🧰|Instalar ferramentas|Pacotes para desenvolvimento" \
-            "5|🔧|Ambiente Termux|Pacotes, storage e manutenção" \
-            "6|🔄|Atualizar Manager|Pacote completo ou módulo" \
-            "7|🧰|Configurações|Preferências e manutenção" \
-            "8|📘|Sobre|Versão e desenvolvedor" \
-            "9|❓|Ajuda|Instalação, atualização e problemas"
+        for pf in "$PID_DIR"/*.pid; do
+            [ -e "$pf" ] && pid_ativo "$pf" && ativos=$((ativos + 1))
+        done
+
+        menu_unificado "📁 PROJETOS" "Gerenciar, importar e acompanhar" \
+            "[0] Voltar  •  [1–3] Selecionar" \
+            "1|📂|Meus projetos|Abrir, testar e organizar" \
+            "2|📦|Importar projeto|Pasta, arquivo ou ZIP" \
+            "3|🚦|Em execução|$ativos componente(s) ativo(s)"
         ler_opcao
         case "$RESPOSTA_MENU" in
             1) gerenciar_projetos ;;
-            2) menu_processos_ativos ;;
-            3) importar_projeto ;;
-            4) menu_instalar_ferramentas ;;
-            5) menu_ambiente_termux ;;
-            6) atualizar_manager_local ;;
-            7) menu_configuracoes ;;
-            8) menu_sobre_manager ;;
-            9) menu_ajuda ;;
+            2) importar_projeto ;;
+            3) menu_processos_ativos ;;
+            0) return ;;
+            *) warn "Opção inválida."; sleep 1 ;;
+        esac
+    done
+}
+
+menu_ambiente_hub() {
+    while true; do
+        detectar_variante_termux
+        menu_unificado "🛠️ AMBIENTE" "Termux, ferramentas e diagnóstico" \
+            "[0] Voltar  •  [1–3] Selecionar" \
+            "1|🧰|Instalar ferramentas|Pacotes para desenvolvimento" \
+            "2|🔧|Ambiente Termux|Atualização, armazenamento e manutenção" \
+            "3|🔎|Diagnóstico rápido|$(termux_origem_resumida) • verificar ambiente"
+        ler_opcao
+        case "$RESPOSTA_MENU" in
+            1) menu_instalar_ferramentas ;;
+            2) menu_ambiente_termux ;;
+            3) verificar_ambiente_termux ;;
+            0) return ;;
+            *) warn "Opção inválida."; sleep 1 ;;
+        esac
+    done
+}
+
+menu_manager_hub() {
+    while true; do
+        menu_unificado "⚙️ MANAGER" "Configuração, atualização e suporte" \
+            "[0] Voltar  •  [1–4] Selecionar" \
+            "1|🔄|Atualizar Manager|Pacote completo ou módulo" \
+            "2|⚙️|Configurações|Preferências e manutenção" \
+            "3|📘|Sobre|Versão, ambiente e desenvolvedor" \
+            "4|❓|Ajuda|Instalação, atualização e problemas"
+        ler_opcao
+        case "$RESPOSTA_MENU" in
+            1) atualizar_manager_local ;;
+            2) menu_configuracoes ;;
+            3) menu_sobre_manager ;;
+            4) menu_ajuda ;;
+            0) return ;;
+            *) warn "Opção inválida."; sleep 1 ;;
+        esac
+    done
+}
+
+menu_principal() {
+    while true; do
+        limpar_pidfiles_inativos
+        menu_unificado "🧰 MANAGER.SH — VERSÃO $MANAGER_VERSION" "Por $MANAGER_DEVELOPER" \
+            "[0] Sair  •  [1–3] Selecionar" \
+            "1|📁|Projetos|Gerenciar, importar e acompanhar" \
+            "2|🛠️|Ambiente|Ferramentas, Termux e diagnóstico" \
+            "3|⚙️|Manager|Atualização, configurações e ajuda"
+        ler_opcao
+        case "$RESPOSTA_MENU" in
+            1) menu_projetos_hub ;;
+            2) menu_ambiente_hub ;;
+            3) menu_manager_hub ;;
             0) echo -e "${C_GREEN}Até mais!${C_RESET}"; exit 0 ;;
             *) warn "Opção inválida."; pause ;;
         esac

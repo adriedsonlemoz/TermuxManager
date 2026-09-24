@@ -1,0 +1,15 @@
+#!/data/data/com.termux/files/usr/bin/bash
+set -euo pipefail
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP="$ROOT_DIR/modules/app.sh"
+HELP="$ROOT_DIR/modules/help.sh"
+bash -n "$APP"
+bash -n "$HELP"
+grep -Fq 'menu_projetos_hub()' "$APP"
+grep -Fq 'menu_ambiente_hub()' "$APP"
+grep -Fq 'menu_manager_hub()' "$APP"
+grep -Fq '1|📁|Projetos|Gerenciar, importar e acompanhar' "$APP"
+grep -Fq '2|🛠️|Ambiente|Ferramentas, Termux e diagnóstico' "$APP"
+grep -Fq '3|⚙️|Manager|Atualização, configurações e ajuda' "$APP"
+! grep -Fq '9|❓|Ajuda|Instalação, atualização e problemas' "$APP"
+echo "OK: menu principal organizado em três áreas sem remover as funções internas."
