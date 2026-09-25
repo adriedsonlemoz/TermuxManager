@@ -47,11 +47,15 @@ largura_visivel() {
     local len=${#s}
     local extras=0
     # Ícones de largura dupla usados no projeto — tratados como 2 colunas
-    # para o alinhamento das caixas dar certo no Termux.
+    # para o alinhamento das caixas dar certo no Termux. A lista precisa
+    # acompanhar TODOS os emojis efetivamente usados pela interface. Antes,
+    # alguns (por exemplo 🚪) ficavam fora dela e eram medidos como 1 coluna;
+    # a linha então ganhava um espaço a mais e a borda direita podia escapar
+    # da moldura no Termux.
     local ch resto
     # Lista tokenizada: evita fatiar uma string UTF-8 por índice, algo que
     # varia conforme o locale disponível no Android/Termux.
-    for ch in 📦 📁 ⚡ ✅ ❌ ⚠ 🔧 📂 🧩 🗑 📋 🔍 🔎 💾 🚀 🌐 🖥 📊 🧰 ℹ ⏳ ⏸ ⏹ ⏭ ⏱ ↩ ⌨ ▶ ○ ☕ ♻ ✔ ✘ ✨ ❓ ➜ ⬆ ⬇ 🔼 🎨 🏷 🐍 🐘 👋 📄 📍 📖 📚 📝 📥 📭 🔄 🔐 🔔 🕒 🕘 🗂 🗄 🚦 🚫 🛑 🛟 🟢 🧭 🧹 🧽 🩺 📘 🧪; do
+    for ch in 🆕 🌍 🌐 🌿 🎨 🎩 🏗 🏠 🏷 🐍 🐘 🐙 🐟 🐧 🐹 👋 👤 💎 💡 💾 📁 📂 📄 📊 📋 📍 📖 📘 📚 📝 📤 📥 📦 📭 📱 📲 🔁 🔄 🔇 🔊 🔍 🔎 🔐 🔒 🔔 🔗 🔙 🔧 🔴 🔼 🕒 🕘 🖥 🗂 🗄 🗑 🚀 🚦 🚪 🚫 🛑 🛟 🛠 🟡 🟢 🦀 🦎 🧠 🧩 🧪 🧭 🧰 🧹 🧽 🩺 🪟 🪨 🪶 ⚡ ✅ ❌ ⚠ ℹ ⏳ ⏸ ⏹ ⏭ ⏱ ↩ ⌨ ▶ ○ ☕ ♻ ✔ ✘ ✨ ❓ ➜ ➡ ⬆ ⬇; do
         resto="$s"
         while [[ "$resto" == *"$ch"* ]]; do
             resto="${resto#*"$ch"}"
@@ -454,6 +458,11 @@ menu_unificado() {
     # efeito visual de opções "caindo" linha por linha em terminais móveis.
     local titulo="$1" subtitulo="$2" rodape="$3"; shift 3
     ui_buffer_flush
+    # Recalcula a largura antes de construir a tela. Antes isso acontecia só
+    # depois que todo o menu já estava montado em memória; uma mudança de
+    # viewport/teclado podia fazer o menu usar a largura antiga e provocar
+    # auto-wrap da borda direita.
+    tela_limpar
     local tela item numero icone nome descricao
     tela="$(
         caixa_linha_topo
@@ -472,7 +481,6 @@ menu_unificado() {
         caixa_linha_texto "${C_DIM}${rodape}${C_RESET}" true
         caixa_linha_baixo
     )"
-    tela_limpar
     printf '%s
 ' "$tela"
 }

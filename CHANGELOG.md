@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.105] - 2026-09-24
+
+### Corrigido
+- A largura visual das caixas agora reconhece todos os emojis usados atualmente pela interface, incluindo `🚪`, `🌍`, `🆕`, `🛠`, `📱` e outros que antes podiam ser contados como uma única coluna e deslocar a borda direita no Termux.
+- `menu_unificado` recalcula a largura do terminal antes de montar o buffer da tela, evitando usar uma largura antiga após mudanças de viewport.
+- O resumo de atualização não imprime mais `Log completo` como texto solto fora da moldura; o caminho do log passa a fazer parte da caixa de últimas mensagens.
+- A contagem `Prosseguindo automaticamente em 3 segundos...` também passa a permanecer dentro da caixa da próxima etapa.
+- A caixa `Próxima etapa` usa quebra de linha visível, evitando cortar instruções longas apenas com reticências.
+
+### Testes
+- Adicionado `test-ui-box-containment.sh`, cobrindo largura de emojis, mudança de viewport e contenção das mensagens de status.
+- A suíte passa de **44 para 45 testes**.
+
 ## [1.0.104] - 2026-09-24
 
 ### Corrigido

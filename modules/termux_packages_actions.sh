@@ -92,12 +92,10 @@ atualizar_pacotes_termux() {
         [ -n "$linha" ] && mensagens_resumo+=("$linha")
     done < <(printf '%s\n' "$resumo_linhas" | head -n 4)
     [ ${#mensagens_resumo[@]} -gt 0 ] || mensagens_resumo=("Nenhuma mensagem pendente.")
-    caixa_simples "Últimas mensagens" "${mensagens_resumo[@]}"
-    printf '\nLog completo: %s\n' "$(caminho_curto "$TERMUX_SETUP_LOG")"
+    caixa_simples "Últimas mensagens"         "${mensagens_resumo[@]}"         "Log completo: $(caminho_curto "$TERMUX_SETUP_LOG")"
     if [ "${WIZARD_MODE:-false}" = true ]; then
         echo
-        caixa_simples "➡ Próxima etapa"             "A atualização do Termux já terminou."             "O assistente vai continuar automaticamente para instalar as ferramentas recomendadas."             "Se esta tela continuar visível por alguns segundos, isso não é travamento."             "Não use Ctrl+C aqui, a menos que realmente queira interromper a configuração."
-        printf '\nProsseguindo automaticamente em 3 segundos...\n'
+        caixa_simples_wrap "➡ Próxima etapa"             "A atualização do Termux já terminou."             "O assistente vai continuar automaticamente para instalar as ferramentas recomendadas."             "Se esta tela continuar visível por alguns segundos, isso não é travamento."             "Não use Ctrl+C aqui, a menos que realmente queira interromper a configuração."             "Prosseguindo automaticamente em 3 segundos..."
         sleep 3
     else
         printf '\nPressione ENTER para continuar...'
