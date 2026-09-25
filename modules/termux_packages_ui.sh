@@ -184,6 +184,21 @@ copiar_log_termux_sanitizado() {
     sanitizar_saida_termux < "$origem" > "$destino"
 }
 
+copiar_log_setup_downloads() {
+    local destino
+    TERMUX_SETUP_LOG_EXPORTADO=""
+    if ! resolver_downloads_dir >/dev/null 2>&1; then
+        return 1
+    fi
+    [ -f "${TERMUX_SETUP_LOG:-}" ] || return 1
+    destino="$DOWNLOADS_DIR/termux-setup.log"
+    if copiar_log_termux_sanitizado "$TERMUX_SETUP_LOG" "$destino"; then
+        TERMUX_SETUP_LOG_EXPORTADO="$destino"
+        return 0
+    fi
+    return 1
+}
+
 exportar_logs_downloads() {
     local destino
     if ! resolver_downloads_dir >/dev/null 2>&1; then

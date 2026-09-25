@@ -4,7 +4,7 @@ Gerenciador modular de projetos para **Termux no Android**, desenvolvido por **A
 
 O Termux Manager organiza, importa, prepara, executa e mantém projetos locais por meio de uma interface de terminal com menus estáveis, progresso em tempo real, logs, backups, atalhos globais e controle de processos.
 
-**Versão atual:** 1.0.105  
+**Versão atual:** 1.0.106  
 
 ### Pós-importação direto ao projeto (1.0.64)
 
@@ -28,6 +28,10 @@ O Manager usa o **nome da pasta** como identidade padrão do projeto. O campo `n
 Ao executar frontend + backend juntos, o Manager usa um painel único com quatro etapas (Backend, Frontend, Inicialização e Disponibilidade). Status, avisos, PID, logs e detecção de servidor permanecem dentro da moldura visual durante a execução. Quando uma etapa falha, o painel é encerrado corretamente e o Manager oferece **Coletar logs do teste**, gerando em Downloads um único TXT sanitizado com logs de backend, frontend, Manager e metadados de processo.
 
 
+
+### Primeira instalação: pós-checagem e exportação de log (1.0.106)
+
+A verificação final das ferramentas agora comprova os comandos que realmente precisam funcionar no Termux, evitando falso aviso de configuração incompleta após uma instalação APT concluída com sucesso. Se ainda houver uma pendência real, o assistente mostra quais pacotes continuam ausentes. A tela de erro e o menu final da configuração também oferecem **Copiar log para Downloads**, criando `termux-setup.log` sanitizado para facilitar o envio do diagnóstico.
 
 ### Correção visual das caixas do terminal (1.0.105)
 
@@ -157,7 +161,7 @@ Na primeira abertura, o Manager confirma o acesso ao armazenamento, atualiza o a
 
 A primeira configuração é retomável: cada etapa concluída é salva. Se uma instalação de pacote ficar sem novas mensagens, o Manager continua mostrando **tempo decorrido** e **tempo desde a última atividade** em vez de parecer congelado. `Ctrl+C` durante uma instalação monitorada não fecha mais o Manager; abre opções para **tentar novamente**, **pular o pacote** ou **retomar depois**. Ao abrir novamente, etapas já concluídas e pacotes já instalados não são repetidos.
 
-Durante a instalação de ferramentas, o Manager também distingue pacotes **já instalados**, **ausentes** e **indisponíveis na variante atual do Termux**. Em uma instalação nova, porém, um cache APT ainda vazio é tratado como estado **não verificado**, e não como pacote inexistente. Depois da sincronização dos repositórios, a etapa só é salva como concluída quando os pacotes iniciais forem realmente encontrados no sistema.
+Durante a instalação de ferramentas, o Manager também distingue pacotes **já instalados**, **ausentes** e **indisponíveis na variante atual do Termux**. Em uma instalação nova, porém, um cache APT ainda vazio é tratado como estado **não verificado**, e não como pacote inexistente. Depois da sincronização dos repositórios, a etapa só é salva como concluída quando as ferramentas correspondentes estiverem realmente funcionais no sistema. Se algo continuar ausente, o Manager mostra a lista exata e permite **Copiar log para Downloads** diretamente da tela de configuração incompleta. A mesma ação também fica disponível no menu final da configuração inicial.
 
 Após a atualização inicial do Termux, o assistente agora mostra uma mensagem explícita informando que a etapa terminou e que a próxima fase continuará automaticamente. Isso evita a sensação de travamento naquela tela de resumo/log.
 
@@ -399,10 +403,10 @@ Backups de projetos são exportados para `Download/projetos/backups`. O Manager 
 O padrão oficial é:
 
 ```text
-Versão: 1.0.105
-Tag: v1.0.105
-Release: Manager 1.0.105
-Pacote único: TermuxManager-v1.0.105.zip
+Versão: 1.0.106
+Tag: v1.0.106
+Release: Manager 1.0.106
+Pacote único: TermuxManager-v1.0.106.zip
 Integridade: MANIFEST.json dentro do próprio pacote
 ```
 

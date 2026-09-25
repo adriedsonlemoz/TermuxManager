@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.0.106] - 2026-09-24
+
+### Corrigido
+- A verificação final das ferramentas da primeira instalação passa a validar a funcionalidade real entregue pelos pacotes (`ls`, `awk`, `find`, `git`, `fish`, `jq` etc.), evitando falso aviso de **Configuração incompleta** quando o `pkg/apt` terminou corretamente mas o nome do pacote não corresponde a um executável direto ou o metadado do pacote não é a melhor prova de uso.
+- Quando a pós-checagem realmente encontra uma ferramenta ausente, o assistente agora mostra a lista exata de pacotes pendentes na tela e também grava essa informação em `termux-setup.log`.
+- O log enviado pelo usuário mostrou atualização e instalação APT concluídas sem erro; esta versão corrige especificamente o falso negativo que acontecia depois dessa etapa.
+
+### Primeira configuração
+- A tela **Configuração incompleta** ganhou a ação **Copiar log para Downloads**, salvando `termux-setup.log` sanitizado diretamente na pasta de Downloads.
+- O menu final da configuração inicial também oferece **Copiar log para Downloads**, mesmo quando a instalação termina normalmente.
+- Se Downloads ainda não estiver acessível, o assistente informa que é necessário liberar o armazenamento com `termux-setup-storage`.
+
+### Testes
+- Adicionado `test-first-run-log-export.sh`, cobrindo a pós-checagem por comando funcional e a exportação sanitizada do log da configuração.
+- A suíte passa de **45 para 46 testes**.
+
 ## [1.0.105] - 2026-09-24
 
 ### Corrigido

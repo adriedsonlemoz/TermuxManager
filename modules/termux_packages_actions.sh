@@ -177,6 +177,41 @@ pacote_instalado_ou_funcional() {
     pacote_ja_funcional "$pacote" || dpkg -s "$pacote" >/dev/null 2>&1
 }
 
+comando_referencia_pacote() {
+    # O nome do pacote nem sempre é o nome de um executável. Na verificação
+    # pós-instalação do wizard, usar `command -v coreutils/findutils` gerava
+    # falsos negativos mesmo com o pacote instalado e funcional. Retorna um
+    # comando representativo que comprova a funcionalidade entregue.
+    case "${1:-}" in
+        coreutils) printf '%s' ls ;;
+        grep) printf '%s' grep ;;
+        sed) printf '%s' sed ;;
+        gawk) printf '%s' awk ;;
+        findutils) printf '%s' find ;;
+        nano) printf '%s' nano ;;
+        micro) printf '%s' micro ;;
+        fish) printf '%s' fish ;;
+        git) printf '%s' git ;;
+        curl) printf '%s' curl ;;
+        wget) printf '%s' wget ;;
+        zip) printf '%s' zip ;;
+        unzip) printf '%s' unzip ;;
+        jq) printf '%s' jq ;;
+        *) printf '%s' "${1:-}" ;;
+    esac
+}
+
+pacote_funcional_pos_instalacao() {
+    local pacote="${1:-}" comando
+    [ -n "$pacote" ] || return 1
+    comando="$(comando_referencia_pacote "$pacote")"
+    [ -n "$comando" ] && command -v "$comando" >/dev/null 2>&1 && return 0
+
+    # Mantém compatibilidade para pacotes que não expõem um binário direto,
+    # mas exige que o status do dpkg seja realmente "install ok installed".
+    dpkg-query -W -f='${Status}' "$pacote" 2>/dev/null | grep -Fqx 'install ok installed'
+}
+
 instalar_lista_pacotes() {
     local titulo="$1"; shift
     local pacotes=("$@") faltando=() indisponiveis=() p

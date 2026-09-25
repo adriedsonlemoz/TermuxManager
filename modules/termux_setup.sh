@@ -67,13 +67,52 @@ menu_ambiente_termux() {
 }
 
 
+mostrar_opcao_exportar_log_setup() {
+    if copiar_log_setup_downloads; then
+        caixa_simples "✅ Log copiado" \
+            "Arquivo: termux-setup.log" \
+            "Destino: $(caminho_curto "$TERMUX_SETUP_LOG_EXPORTADO")" \
+            "O conteúdo foi sanitizado antes da cópia."
+        return 0
+    fi
+
+    caixa_simples "⚠ Não foi possível copiar o log" \
+        "Origem: $(caminho_curto "$TERMUX_SETUP_LOG")" \
+        "A pasta Downloads ainda não está acessível." \
+        "Use termux-setup-storage e conceda a permissão do Android."
+    return 1
+}
+
+tela_falha_ferramentas_primeira_execucao() {
+    local pendentes="${1:-não identificados}"
+    cabecalho_tela "⚠ Configuração incompleta" "Algumas ferramentas ainda não estão disponíveis"
+    caixa_simples "Verificação final" \
+        "Pendentes: $pendentes" \
+        "Log: $(caminho_curto "$TERMUX_SETUP_LOG")" \
+        "O progresso foi preservado."
+
+    while true; do
+        menu_unificado "📝 Log da configuração" \
+            "Use o arquivo para diagnóstico ou retome depois" \
+            "[1] Copiar log  •  [0] Retomar depois" \
+            "1|📥|Copiar log para Downloads|Salvar termux-setup.log sanitizado" \
+            "0|↩|Retomar na próxima abertura|Pacotes já instalados não serão repetidos"
+        ler_opcao
+        case "$RESPOSTA_MENU" in
+            1) mostrar_opcao_exportar_log_setup; pause ;;
+            0) return 0 ;;
+            *) feedback_curto "Opção inválida." ;;
+        esac
+    done
+}
+
 tela_conclusao_primeira_execucao() {
     # Primeira tela: conclusão isolada, sem prompts ou menus misturados.
     tela_caixa_unica "✅ Instalação concluída"         "Manager.sh ${MANAGER_VERSION}"         "Configuração inicial finalizada"         "${C_GREEN}✔${C_RESET} Versão instalada: ${MANAGER_VERSION}"         "${C_GREEN}✔${C_RESET} Ferramentas recomendadas verificadas"         "${C_GREEN}✔${C_RESET} Armazenamento preparado"         "${C_GREEN}✔${C_RESET} Atalho global configurado"         ""         "${C_DIM}As alterações já foram salvas no sistema.${C_RESET}"
     pause
 
     while true; do
-        menu_unificado "🔄 Aplicar alterações"             "Reinício do shell recomendado"             "[1] Reiniciar agora  •  [2] Continuar  •  [0] Sair"             "1|🔄|Reiniciar o shell agora|Aplicar todas as alterações"             "2|▶️|Continuar para o Manager|Aplicar depois"             "0|🚪|Sair sem reiniciar|Voltar ao terminal atual"
+        menu_unificado "🔄 Aplicar alterações"             "Reinício do shell recomendado"             "[1] Reiniciar  •  [2] Continuar  •  [3] Copiar log  •  [0] Sair"             "1|🔄|Reiniciar o shell agora|Aplicar todas as alterações"             "2|▶️|Continuar para o Manager|Aplicar depois"             "3|📥|Copiar log para Downloads|Salvar termux-setup.log sanitizado"             "0|🚪|Sair sem reiniciar|Voltar ao terminal atual"
         ler_opcao
         case "$RESPOSTA_MENU" in
             1)
@@ -92,6 +131,10 @@ tela_conclusao_primeira_execucao() {
                 tela_caixa_unica "▶️ Continuando"                     "Abrindo o menu principal"                     "Reinicie o shell mais tarde para aplicar tudo"                     "${C_GREEN}✔${C_RESET} Manager pronto para uso"                     "${C_DIM}Comando de acesso: manager${C_RESET}"
                 sleep 0.8
                 return 0
+                ;;
+            3)
+                mostrar_opcao_exportar_log_setup
+                pause
                 ;;
             0)
                 tela_caixa_unica "👋 Configuração salva"                     "Manager.sh ${MANAGER_VERSION}"                     "Reinicie o Termux quando desejar"                     "${C_GREEN}✔${C_RESET} Nenhuma configuração será perdida"                     "${C_DIM}Para abrir novamente, execute: manager${C_RESET}"
@@ -184,14 +227,17 @@ assistente_primeira_execucao() {
         # Só considera a etapa concluída se os pacotes realmente estiverem
         # presentes. Antes, um apt-cache vazio podia classificar tudo como
         # indisponível, retornar sucesso e gravar tools=done sem baixar nada.
+        local -a pacotes_pendentes=()
         if [ "$ferramentas_rc" -eq 0 ]; then
-            local -a pacotes_pendentes=()
             for pacote_inicial in "${pacotes_iniciais[@]}"; do
-                pacote_instalado_ou_funcional "$pacote_inicial" || pacotes_pendentes+=("$pacote_inicial")
+                pacote_funcional_pos_instalacao "$pacote_inicial" || pacotes_pendentes+=("$pacote_inicial")
             done
             if [ "${#pacotes_pendentes[@]}" -gt 0 ]; then
                 ferramentas_rc=1
-                log "ERROR" "Wizard: pacotes iniciais ainda ausentes após instalação: ${pacotes_pendentes[*]}"
+                log "ERROR" "Wizard: ferramentas ainda indisponíveis após instalação: ${pacotes_pendentes[*]}"
+                {
+                    printf '\n[Manager] Verificação final encontrou pendências: %s\n' "${pacotes_pendentes[*]}"
+                } >> "$TERMUX_SETUP_LOG" 2>/dev/null || true
             fi
         fi
         if [ "$ferramentas_rc" -eq 130 ]; then
@@ -205,11 +251,13 @@ assistente_primeira_execucao() {
             return 0
         elif [ "$ferramentas_rc" -ne 0 ]; then
             WIZARD_MODE=false
-            cabecalho_tela "⚠ Configuração incompleta" "Algumas ferramentas não foram instaladas"
-            caixa_simples "Consulte o log" \
-                "$(caminho_curto "$TERMUX_SETUP_LOG")" \
-                "O progresso foi preservado e o assistente retomará na próxima abertura."
-            pause
+            local pendentes_resumo
+            if [ "${#pacotes_pendentes[@]}" -gt 0 ]; then
+                pendentes_resumo="${pacotes_pendentes[*]}"
+            else
+                pendentes_resumo="falha durante pkg/apt; consulte o log"
+            fi
+            tela_falha_ferramentas_primeira_execucao "$pendentes_resumo"
             return 0
         fi
         first_run_mark_stage tools
